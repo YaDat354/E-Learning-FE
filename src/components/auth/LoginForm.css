@@ -1,0 +1,99 @@
+.auth-form {
+  display: grid;
+  text-align: left;
+  gap: 12px;
+}
+
+.auth-label {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0b1220;
+}
+
+.auth-input {
+  width: 100%;
+  border: none;
+  background: #e7e9ee;
+  border-radius: 12px;
+  padding: 14px 16px;
+  font-size: 18px;
+  color: #334155;
+}
+
+.auth-input::placeholder {
+  color: #637087;
+}
+
+.auth-input:focus {
+  outline: 2px solid rgba(37, 99, 235, 0.35);
+}
+
+.auth-forgot-link {
+  margin-top: 8px;
+  margin-bottom: 2px;
+  justify-self: start;
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+  cursor: pointer;
+}
+
+.auth-forgot-link:hover {
+  text-decoration: underline;
+}
+
+.auth-submit-button {
+  border: none;
+  border-radius: 12px;
+  padding: 14px 16px;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 20px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.auth-submit-button:hover {
+  opacity: 0.95;
+}
+
+.auth-inline-note {
+  margin-top: 12px;
+  text-align: center;
+  font-size: 20px;
+  color: #0f172a;
+}
+
+.auth-inline-link {
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: inherit;
+  font-weight: 700;
+  color: #0f172a;
+  cursor: pointer;
+}
+
+.auth-inline-link:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 900px) {
+  .auth-label {
+    font-size: 18px;
+  }
+
+  .auth-input {
+    font-size: 16px;
+    padding: 12px 14px;
+  }
+
+  .auth-forgot-link,
+  .auth-submit-button,
+  .auth-inline-note {
+    font-size: 16px;
+  }
+}

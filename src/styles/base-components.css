@@ -1,0 +1,68 @@
+.ui-button {
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ui-button-primary {
+  background: var(--brand);
+  color: var(--brand-contrast);
+}
+
+.ui-button-primary:hover {
+  opacity: 0.92;
+}
+
+.ui-button-ghost {
+  background: var(--surface-2);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.ui-input-wrap {
+  display: grid;
+  gap: 6px;
+}
+
+.ui-input-wrap label {
+  font-weight: 600;
+}
+
+.ui-input-wrap small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.ui-input {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #ffffff;
+}
+
+.ui-input:focus {
+  outline: 2px solid rgba(16, 102, 214, 0.25);
+  border-color: var(--brand);
+}
+
+.ui-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  padding: 16px;
+  display: grid;
+  gap: 8px;
+}
+
+.ui-card-subtitle {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.ui-card-content {
+  margin-top: 6px;
+}

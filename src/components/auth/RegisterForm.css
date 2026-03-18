@@ -1,0 +1,82 @@
+.register-form {
+  display: grid;
+  text-align: left;
+  gap: 12px;
+}
+
+.register-label {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0b1220;
+}
+
+.register-input {
+  width: 100%;
+  border: none;
+  background: #e7e9ee;
+  border-radius: 12px;
+  padding: 14px 16px;
+  font-size: 18px;
+  color: #334155;
+}
+
+.register-input::placeholder {
+  color: #637087;
+}
+
+.register-input:focus {
+  outline: 2px solid rgba(37, 99, 235, 0.35);
+}
+
+.register-submit-button {
+  margin-top: 8px;
+  border: none;
+  border-radius: 12px;
+  padding: 14px 16px;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 20px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.register-submit-button:hover {
+  opacity: 0.95;
+}
+
+.register-inline-note {
+  margin-top: 12px;
+  text-align: center;
+  font-size: 20px;
+  color: #0f172a;
+}
+
+.register-inline-link {
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: inherit;
+  font-weight: 700;
+  color: #0f172a;
+  cursor: pointer;
+}
+
+.register-inline-link:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 900px) {
+  .register-label {
+    font-size: 18px;
+  }
+
+  .register-input {
+    font-size: 16px;
+    padding: 12px 14px;
+  }
+
+  .register-submit-button,
+  .register-inline-note {
+    font-size: 16px;
+  }
+}
