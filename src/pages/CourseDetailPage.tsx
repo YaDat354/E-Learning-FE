@@ -74,7 +74,6 @@ function CourseDetailPage({ courseId, user, onGoAuth, onBack, onGoToLesson }: Pr
 
   return (
     <div className="course-detail-page">
-      {/* ── Nav ── */}
       <nav className="page-nav">
         <div className="page-nav-left">
           <button className="btn-back" onClick={onBack}>Về trang chủ</button>
@@ -100,7 +99,6 @@ function CourseDetailPage({ courseId, user, onGoAuth, onBack, onGoToLesson }: Pr
         )}
       </nav>
 
-      {/* ── Course hero ── */}
       <div className="course-hero">
         <div className="course-hero-inner">
           <div>
@@ -134,7 +132,6 @@ function CourseDetailPage({ courseId, user, onGoAuth, onBack, onGoToLesson }: Pr
             </div>
           </div>
 
-          {/* Enroll card */}
           <div className="enroll-card">
             <div className="enroll-price-row">
               <span className="enroll-price">{course.price.toLocaleString('vi-VN')}đ</span>
@@ -155,10 +152,8 @@ function CourseDetailPage({ courseId, user, onGoAuth, onBack, onGoToLesson }: Pr
         </div>
       </div>
 
-      {/* ── Main Content ── */}
       <div className="course-content-wrap">
         <div className="course-content-main">
-          {/* What you'll learn */}
           <div className="content-section">
             <h3>Bạn sẽ học được gì</h3>
             <div className="learning-grid">
@@ -168,7 +163,6 @@ function CourseDetailPage({ courseId, user, onGoAuth, onBack, onGoToLesson }: Pr
             </div>
           </div>
 
-          {/* Lessons list */}
           <div className="content-section">
             <h3>Nội dung khóa học</h3>
             <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 14 }}>
@@ -207,7 +201,6 @@ function CourseDetailPage({ courseId, user, onGoAuth, onBack, onGoToLesson }: Pr
           </div>
         </div>
 
-        {/* Sidebar */}
         <div style={{ display: 'grid', gap: 16, alignSelf: 'start' }}>
           <div className="content-section">
             <h3>Giảng viên</h3>

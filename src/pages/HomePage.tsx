@@ -94,7 +94,6 @@ function HomePage({ user, onGoAuth, onGoCourse, onLogout }: HomePageProps) {
 
   return (
     <div>
-      {/* ── Navbar ── */}
       <nav className="home-nav">
         <div className="home-nav-brand">
           <div className="home-nav-logo">EL</div>
@@ -125,7 +124,6 @@ function HomePage({ user, onGoAuth, onGoCourse, onLogout }: HomePageProps) {
         </div>
       </nav>
 
-      {/* ── Hero ── */}
       <section className="hero-section">
         <div className="hero-inner">
           <div className="hero-badge">{roleView.badge}</div>
@@ -160,8 +158,8 @@ function HomePage({ user, onGoAuth, onGoCourse, onLogout }: HomePageProps) {
           )}
           <div className="hero-social-proof">
             <div className="hero-avatars">
-              {['HN', 'TB', 'DK', 'LB'].map((init, i) => (
-                <span key={i} className="hero-avatar-dot">{init}</span>
+              {['HN', 'TB', 'DK', 'LB'].map((init, index) => (
+                <span key={index} className="hero-avatar-dot">{init}</span>
               ))}
             </div>
             <span>Hơn 10,000 học viên đã đăng ký học</span>
@@ -169,17 +167,15 @@ function HomePage({ user, onGoAuth, onGoCourse, onLogout }: HomePageProps) {
         </div>
       </section>
 
-      {/* ── Stats ── */}
       <div className="stats-bar">
-        {STATS.map(s => (
-          <div key={s.label} className="stat-item">
-            <div className="stat-value">{s.value}</div>
-            <div className="stat-label">{s.label}</div>
+        {STATS.map((stat) => (
+          <div key={stat.label} className="stat-item">
+            <div className="stat-value">{stat.value}</div>
+            <div className="stat-label">{stat.label}</div>
           </div>
         ))}
       </div>
 
-      {/* ── Featured Courses ── */}
       <section id="courses" className="courses-section">
         <SectionHeader
           title="Khóa học nổi bật"
@@ -198,16 +194,15 @@ function HomePage({ user, onGoAuth, onGoCourse, onLogout }: HomePageProps) {
         </div>
       </section>
 
-      {/* ── How it works ── */}
       <section id="how" className="how-section">
         <SectionHeader
           title="Cách trải nghiệm demo"
           subtitle="Dùng luồng học tương tác để demo ngay cả khi chưa đăng nhập"
         />
         <div className="steps-grid">
-          {STEPS.map((step, i) => (
-            <div key={i} className="step-card">
-              <span className="step-number">{i + 1}</span>
+          {STEPS.map((step, index) => (
+            <div key={index} className="step-card">
+              <span className="step-number">{index + 1}</span>
               <div className="step-icon">{step.icon}</div>
               <div className="step-title">{step.title}</div>
               <div className="step-desc">{step.desc}</div>
@@ -216,7 +211,6 @@ function HomePage({ user, onGoAuth, onGoCourse, onLogout }: HomePageProps) {
         </div>
       </section>
 
-      {/* ── CTA banner ── */}
       <section className="cta-banner">
         <h2>Bắt đầu học tiếng Anh ngay hôm nay</h2>
         <p>Chọn lộ trình phù hợp, học thử bài miễn phí và tương tác với giảng viên ngay trong buổi demo</p>
@@ -225,7 +219,6 @@ function HomePage({ user, onGoAuth, onGoCourse, onLogout }: HomePageProps) {
         </button>
       </section>
 
-      {/* ── Footer ── */}
       <footer className="home-footer">
         <span>© 2026 Nền tảng học tiếng Anh trực tuyến</span>
         <span>Demo học tập tương tác cho khóa học tiếng Anh</span>

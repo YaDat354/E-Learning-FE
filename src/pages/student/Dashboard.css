@@ -1,0 +1,121 @@
+.student-page {
+	min-height: 100vh;
+	background: #f7f9fc;
+	color: #0f172a;
+	padding: 28px;
+}
+
+.student-shell {
+	max-width: 1100px;
+	margin: 0 auto;
+	display: grid;
+	gap: 18px;
+}
+
+.student-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 12px;
+	flex-wrap: wrap;
+}
+
+.student-title {
+	margin: 0;
+	font-size: 30px;
+	letter-spacing: -0.02em;
+}
+
+.student-subtitle {
+	margin: 6px 0 0;
+	color: #475569;
+}
+
+.student-toolbar {
+	display: flex;
+	gap: 10px;
+	flex-wrap: wrap;
+}
+
+.student-btn {
+	border: none;
+	background: #1d4ed8;
+	color: #fff;
+	border-radius: 10px;
+	padding: 10px 14px;
+	font-size: 14px;
+	font-weight: 600;
+	cursor: pointer;
+}
+
+.student-btn.ghost {
+	background: #e2e8f0;
+	color: #0f172a;
+}
+
+.student-grid {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 12px;
+}
+
+.student-card {
+	background: #fff;
+	border: 1px solid #e2e8f0;
+	border-radius: 14px;
+	padding: 16px;
+}
+
+.student-card h3 {
+	margin: 0 0 10px;
+	font-size: 16px;
+}
+
+.student-metric {
+	font-size: 30px;
+	font-weight: 800;
+	margin: 0;
+}
+
+.student-panel {
+	background: #fff;
+	border: 1px solid #e2e8f0;
+	border-radius: 14px;
+	padding: 16px;
+}
+
+.student-list {
+	display: grid;
+	gap: 10px;
+}
+
+.student-list-item {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 10px;
+	border: 1px solid #dbe3ef;
+	background: #fff;
+	border-radius: 12px;
+	padding: 12px;
+}
+
+.student-list-title {
+	font-weight: 700;
+	margin-bottom: 4px;
+}
+
+.student-list-meta {
+	font-size: 13px;
+	color: #64748b;
+}
+
+@media (max-width: 900px) {
+	.student-page {
+		padding: 16px;
+	}
+
+	.student-grid {
+		grid-template-columns: 1fr;
+	}
+}

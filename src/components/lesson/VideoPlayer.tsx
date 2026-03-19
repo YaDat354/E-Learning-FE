@@ -1,0 +1,1 @@
+export { default } from '../course/VideoPlayer.tsx'
