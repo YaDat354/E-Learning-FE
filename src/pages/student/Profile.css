@@ -1,18 +1,22 @@
-.student-page {
+.profile-page {
 	min-height: 100vh;
-	background: #f7f9fc;
-	color: #0f172a;
 	padding: 28px;
+	color: #0f172a;
+	font-family: 'Be Vietnam Pro', 'Segoe UI', Tahoma, sans-serif;
+	background:
+		radial-gradient(circle at 10% 10%, rgba(14, 116, 144, 0.16) 0, rgba(14, 116, 144, 0) 40%),
+		radial-gradient(circle at 92% 15%, rgba(217, 119, 6, 0.18) 0, rgba(217, 119, 6, 0) 34%),
+		linear-gradient(180deg, #f4f9ff 0%, #f7fafc 55%, #f6f8fb 100%);
 }
 
-.student-shell {
-	max-width: 1100px;
+.profile-page .student-shell {
+	max-width: 1120px;
 	margin: 0 auto;
 	display: grid;
 	gap: 18px;
 }
 
-.student-header {
+.profile-page .student-header {
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
@@ -20,52 +24,73 @@
 	flex-wrap: wrap;
 }
 
-.student-toolbar {
+.profile-page .student-toolbar {
 	display: flex;
 	gap: 10px;
 	flex-wrap: wrap;
 }
 
-.student-title {
+.profile-page .student-title {
 	margin: 0;
-	font-size: 30px;
-	letter-spacing: -0.02em;
+	font-size: clamp(28px, 4vw, 34px);
+	letter-spacing: -0.03em;
+	line-height: 1.15;
 }
 
-.student-subtitle {
-	margin: 6px 0 0;
-	color: #475569;
+.profile-page .student-subtitle {
+	margin: 8px 0 0;
+	color: #334155;
+	max-width: 700px;
 }
 
-.student-btn {
+.profile-page .student-btn {
 	border: none;
-	background: #1d4ed8;
+	background: linear-gradient(135deg, #0f766e, #0e7490);
 	color: #fff;
-	border-radius: 10px;
-	padding: 10px 14px;
+	border-radius: 12px;
+	padding: 10px 15px;
 	font-size: 14px;
 	font-weight: 600;
 	cursor: pointer;
+	transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
 }
 
-.student-btn.ghost {
-	background: #e2e8f0;
+.profile-page .student-btn:hover {
+	transform: translateY(-1px);
+	box-shadow: 0 10px 22px rgba(15, 118, 110, 0.2);
+}
+
+.profile-page .student-btn.ghost {
+	background: #e6edf4;
 	color: #0f172a;
 }
 
-.student-panel {
-	background: #fff;
-	border: 1px solid #e2e8f0;
-	border-radius: 14px;
-	padding: 16px;
+.profile-page .student-btn.danger {
+	background: linear-gradient(135deg, #dc2626, #f97316);
 }
 
-.student-list {
+.profile-page .student-panel {
+	background: rgba(255, 255, 255, 0.86);
+	backdrop-filter: blur(2px);
+	border: 1px solid #dbe3ef;
+	border-radius: 16px;
+	padding: 18px;
+	box-shadow: 0 6px 20px rgba(15, 23, 42, 0.04);
+	animation: profile-fade-in 0.45s ease both;
+}
+
+.profile-page .student-panel h3 {
+	margin: 0 0 14px;
+	font-size: 19px;
+	letter-spacing: -0.02em;
+}
+
+.profile-page .student-list {
 	display: grid;
 	gap: 10px;
 }
 
-.student-list-item {
+.profile-page .student-list-item {
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
@@ -74,118 +99,248 @@
 	background: #fff;
 	border-radius: 12px;
 	padding: 12px;
+	transition: border-color 0.2s ease, transform 0.2s ease;
 }
 
-.student-list-title {
+.profile-page .student-list-item:hover {
+	border-color: #67e8f9;
+	transform: translateY(-1px);
+}
+
+.profile-page .student-list-title {
 	font-weight: 700;
 	margin-bottom: 4px;
 }
 
-.student-list-meta {
+.profile-page .student-list-meta {
 	font-size: 13px;
 	color: #64748b;
 }
 
-.student-badge {
+.profile-page .student-badge {
 	font-size: 12px;
 	font-weight: 700;
 	border-radius: 999px;
-	padding: 3px 10px;
+	padding: 4px 10px;
 	background: #e2e8f0;
 	color: #334155;
 }
 
-.student-profile-grid {
+.profile-page .student-profile-grid {
 	display: grid;
 	gap: 14px;
 }
 
-.student-profile-hero {
-	display: flex;
+.profile-page .student-profile-hero {
+	display: grid;
+	grid-template-columns: auto 1fr auto;
 	align-items: center;
-	gap: 14px;
-	padding: 16px;
-	border-radius: 14px;
+	gap: 18px;
+	padding: 18px;
+	border-radius: 18px;
 	border: 1px solid #dbe3ef;
-	background: linear-gradient(120deg, #ffffff 0%, #f0f6ff 100%);
+	background: linear-gradient(120deg, rgba(255, 255, 255, 0.98) 0%, rgba(240, 249, 255, 0.95) 100%);
+	box-shadow: 0 12px 26px rgba(14, 116, 144, 0.1);
+	animation: profile-fade-in 0.4s ease both;
 }
 
-.student-profile-avatar {
-	width: 62px;
-	height: 62px;
-	border-radius: 16px;
-	background: #1d4ed8;
-	color: #fff;
-	display: grid;
-	place-items: center;
-	font-size: 22px;
-	font-weight: 800;
-	flex-shrink: 0;
-}
-
-.student-profile-hero h2 {
+.profile-page .student-profile-hero-content h2 {
 	margin: 0;
-	font-size: 24px;
+	font-size: clamp(22px, 3.4vw, 28px);
+	letter-spacing: -0.02em;
 }
 
-.student-profile-hero p {
+.profile-page .student-profile-hero-content p {
 	margin: 6px 0 10px;
 	color: #64748b;
 }
 
-.student-profile-role-row {
+.profile-page .student-profile-avatar {
+	width: 68px;
+	height: 68px;
+	border-radius: 18px;
+	background: linear-gradient(135deg, #0e7490, #0f766e);
+	color: #fff;
+	display: grid;
+	place-items: center;
+	font-size: 24px;
+	font-weight: 800;
+	flex-shrink: 0;
+	box-shadow: 0 10px 24px rgba(14, 116, 144, 0.34);
+}
+
+.profile-page .student-profile-role-row {
 	display: flex;
 	gap: 8px;
 	flex-wrap: wrap;
 }
 
-.profile-active {
+.profile-page .profile-active {
 	background: #dcfce7;
 	color: #166534;
 }
 
-.student-profile-stats {
+.profile-page .profile-verified {
+	background: #fef3c7;
+	color: #92400e;
+}
+
+.profile-page .student-profile-hero-side {
+	min-width: 200px;
+	padding: 12px;
+	border-radius: 12px;
+	background: #ffffff;
+	border: 1px solid #dbeafe;
+	display: grid;
+	gap: 6px;
+}
+
+.profile-page .student-profile-progress-label {
+	font-size: 12px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: #475569;
+}
+
+.profile-page .student-profile-hero-side strong {
+	font-size: 30px;
+	line-height: 1;
+	color: #0f766e;
+}
+
+.profile-page .student-progress {
+	height: 10px;
+	border-radius: 999px;
+	background: #e2e8f0;
+	overflow: hidden;
+}
+
+.profile-page .student-progress-fill {
+	height: 100%;
+	border-radius: inherit;
+	background: linear-gradient(90deg, #14b8a6, #0ea5e9);
+	transition: width 0.5s ease;
+}
+
+.profile-page .student-profile-stats {
 	display: grid;
 	gap: 10px;
 	grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.student-profile-stat {
+.profile-page .student-profile-stat {
 	border: 1px solid #dbe3ef;
 	border-radius: 12px;
 	padding: 12px;
-	background: #f8fbff;
+	background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
 	display: grid;
-	gap: 4px;
+	gap: 6px;
 }
 
-.student-profile-stat span {
+.profile-page .student-profile-stat span {
 	font-size: 13px;
 	color: #64748b;
 }
 
-.student-profile-stat strong {
-	font-size: 24px;
+.profile-page .student-profile-stat strong {
+	font-size: 26px;
+	color: #0f172a;
+	line-height: 1;
 }
 
-.student-profile-goals {
+.profile-page .student-profile-stat small {
+	font-size: 12px;
+	color: #0369a1;
+	font-weight: 600;
+}
+
+.profile-page .student-profile-goals {
+	list-style: none;
 	margin: 0;
-	padding-left: 18px;
+	padding: 0;
 	display: grid;
 	gap: 8px;
 	color: #334155;
 }
 
+.profile-page .student-profile-goals li {
+	position: relative;
+	padding: 10px 12px 10px 40px;
+	border: 1px solid #dbe3ef;
+	border-radius: 12px;
+	background: #fff;
+}
+
+.profile-page .student-profile-goals li::before {
+	content: '';
+	position: absolute;
+	left: 14px;
+	top: 50%;
+	transform: translateY(-50%);
+	width: 16px;
+	height: 16px;
+	border-radius: 50%;
+	border: 2px solid #94a3b8;
+	background: transparent;
+}
+
+.profile-page .student-profile-goals li.done {
+	border-color: #86efac;
+	background: #f0fdf4;
+	color: #166534;
+}
+
+.profile-page .student-profile-goals li.done::before {
+	border-color: #16a34a;
+	background: #16a34a;
+	box-shadow: inset 0 0 0 3px #f0fdf4;
+}
+
+.profile-page .student-profile-highlights {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.profile-page .student-highlight-chip {
+	padding: 8px 12px;
+	border-radius: 999px;
+	font-size: 13px;
+	font-weight: 600;
+	background: linear-gradient(120deg, #ecfeff, #e0f2fe);
+	border: 1px solid #bae6fd;
+	color: #0c4a6e;
+}
+
+@keyframes profile-fade-in {
+	from {
+		opacity: 0;
+		transform: translateY(6px);
+	}
+
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
 @media (max-width: 900px) {
-	.student-page {
+	.profile-page {
 		padding: 16px;
 	}
 
-	.student-profile-stats {
+	.profile-page .student-profile-stats {
 		grid-template-columns: 1fr;
 	}
 
-	.student-profile-hero {
-		align-items: flex-start;
+	.profile-page .student-profile-hero {
+		grid-template-columns: 1fr;
+		justify-items: start;
+	}
+
+	.profile-page .student-profile-hero-side {
+		min-width: 0;
+		width: 100%;
 	}
 }
