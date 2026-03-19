@@ -5,9 +5,10 @@ import './Profile.css'
 type ProfileProps = {
 	user: User
 	onLogout: () => void
+	onBackToDashboard: () => void
 }
 
-function Profile({ user, onLogout }: ProfileProps) {
+function Profile({ user, onLogout, onBackToDashboard }: ProfileProps) {
 	const initials = user.name
 		.split(' ')
 		.map((item) => item[0])
@@ -23,7 +24,10 @@ function Profile({ user, onLogout }: ProfileProps) {
 						<h1 className="student-title">Hồ sơ học viên</h1>
 						<p className="student-subtitle">Theo dõi thông tin, mục tiêu và tiến độ học tiếng Anh</p>
 					</div>
-					<button className="student-btn ghost" onClick={onLogout}>Đăng xuất</button>
+					<div className="student-toolbar">
+						<button className="student-btn ghost" onClick={onBackToDashboard}>Về Dashboard</button>
+						<button className="student-btn ghost" onClick={onLogout}>Đăng xuất</button>
+					</div>
 				</header>
 
 				<section className="student-profile-grid">

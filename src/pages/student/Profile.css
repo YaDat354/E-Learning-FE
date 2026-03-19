@@ -20,6 +20,12 @@
 	flex-wrap: wrap;
 }
 
+.student-toolbar {
+	display: flex;
+	gap: 10px;
+	flex-wrap: wrap;
+}
+
 .student-title {
 	margin: 0;
 	font-size: 30px;

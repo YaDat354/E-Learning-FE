@@ -178,7 +178,12 @@ function App() {
       return <AuthPage onLogin={handleLogin} onBack={goToHome} />
     }
 
-    return <StudentCourseList onOpenCourse={(courseId) => navigate({ view: 'course', courseId })} />
+    return (
+      <StudentCourseList
+        onOpenCourse={(courseId) => navigate({ view: 'course', courseId })}
+        onBackToDashboard={() => navigate({ view: 'student-dashboard' })}
+      />
+    )
   }
 
   if (effectiveRoute.view === 'student-profile') {
@@ -186,7 +191,13 @@ function App() {
       return <AuthPage onLogin={handleLogin} onBack={goToHome} />
     }
 
-    return <StudentProfile user={user} onLogout={handleLogout} />
+    return (
+      <StudentProfile
+        user={user}
+        onLogout={handleLogout}
+        onBackToDashboard={() => navigate({ view: 'student-dashboard' })}
+      />
+    )
   }
 
   if (effectiveRoute.view === 'teacher-dashboard') {
