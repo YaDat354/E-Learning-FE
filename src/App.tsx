@@ -17,6 +17,8 @@ import TeacherCourseManage from './pages/teacher/CourseManage.tsx'
 import TeacherLessonManage from './pages/teacher/LessonManage.tsx'
 import TeacherQuizManage from './pages/teacher/QuizManage.tsx'
 import TeacherAssignmentManage from './pages/teacher/AssignmentManage.tsx'
+import AdminCreateCourse from './pages/teacher/CreateCourse.tsx'
+import AdminEditCourse from './pages/teacher/EditCourse.tsx'
 import AdminDashboard from './pages/admin/Dashboard.tsx'
 import AdminUserManage from './pages/admin/UserManage.tsx'
 import AdminCourseManage from './pages/admin/CourseManage.tsx'
@@ -153,7 +155,11 @@ function App() {
     }
 
     if (user?.role === 'admin') {
-      return <AdminDashboard />
+      return <AdminDashboard
+          onGoCourses={() => navigate({ view: 'admin-courses' })}
+          onGoUsers={() => navigate({ view: 'admin-users' })}
+          onLogout={handleLogout}
+        />
     }
 
     return (
@@ -275,12 +281,43 @@ function App() {
     )
   }
 
+  if (effectiveRoute.view === 'admin-create-course') {
+    if (!user || user.role !== 'admin') {
+      return <AuthPage onLogin={handleLogin} onBack={goToHome} />
+    }
+
+    return (
+      <AdminCreateCourse
+        onBackToDashboard={() => navigate({ view: 'admin-courses' })}
+        onCreated={() => navigate({ view: 'admin-courses' })}
+      />
+    )
+  }
+
+  if (effectiveRoute.view === 'admin-edit-course') {
+    if (!user || user.role !== 'admin') {
+      return <AuthPage onLogin={handleLogin} onBack={goToHome} />
+    }
+
+    return (
+      <AdminEditCourse
+        courseId={effectiveRoute.courseId}
+        onBackToDashboard={() => navigate({ view: 'admin-courses' })}
+        onUpdated={() => navigate({ view: 'admin-courses' })}
+      />
+    )
+  }
+
   if (effectiveRoute.view === 'admin-dashboard') {
     if (!user || user.role !== 'admin') {
       return <AuthPage onLogin={handleLogin} onBack={goToHome} />
     }
 
-    return <AdminDashboard />
+    return <AdminDashboard
+        onGoCourses={() => navigate({ view: 'admin-courses' })}
+        onGoUsers={() => navigate({ view: 'admin-users' })}
+        onLogout={handleLogout}
+      />
   }
 
   if (effectiveRoute.view === 'admin-users') {
@@ -288,7 +325,9 @@ function App() {
       return <AuthPage onLogin={handleLogin} onBack={goToHome} />
     }
 
-    return <AdminUserManage />
+    return <AdminUserManage
+        onBackToDashboard={() => navigate({ view: 'admin-dashboard' })}
+      />
   }
 
   if (effectiveRoute.view === 'admin-courses') {
@@ -296,7 +335,11 @@ function App() {
       return <AuthPage onLogin={handleLogin} onBack={goToHome} />
     }
 
-    return <AdminCourseManage />
+    return <AdminCourseManage
+        onBackToDashboard={() => navigate({ view: 'admin-dashboard' })}
+        onCreateCourse={() => navigate({ view: 'admin-create-course' })}
+        onEditCourse={(courseId) => navigate({ view: 'admin-edit-course', courseId })}
+      />
   }
 
   if (effectiveRoute.view === 'course') {

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+﻿import { useMemo, useState } from 'react'
 import { COURSES } from '../../data/mockData.ts'
 import type { Course } from '../../data/mockData.ts'
 import './CourseManage.css'
@@ -60,11 +60,11 @@ function CourseManage({ onBackToDashboard, onGoLessons }: Props) {
 						</p>
 					</div>
 					<div className="teacher-toolbar">
-						<button className="teacher-btn ghost" onClick={onBackToDashboard}>
-							Về Dashboard
-						</button>
 						<button className="teacher-btn ghost" onClick={onGoLessons}>
 							Bài học
+						</button>
+						<button className="teacher-btn ghost" onClick={onBackToDashboard}>
+							Về Dashboard
 						</button>
 					</div>
 				</header>
@@ -176,7 +176,7 @@ function CourseManage({ onBackToDashboard, onGoLessons }: Props) {
 												className="teacher-action-btn"
 												onClick={() => startEdit(course)}
 											>
-												Sửa
+												Sửa nhanh
 											</button>
 										</div>
 									</td>
