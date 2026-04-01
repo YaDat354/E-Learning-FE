@@ -140,7 +140,16 @@ function App() {
     }
 
     if (user?.role === 'teacher') {
-      return <TeacherDashboard />
+      return (
+        <TeacherDashboard
+          user={user}
+          onGoCourses={() => navigate({ view: 'teacher-courses' })}
+          onGoLessons={() => navigate({ view: 'teacher-lessons' })}
+          onGoQuizzes={() => navigate({ view: 'teacher-quizzes' })}
+          onGoAssignments={() => navigate({ view: 'teacher-assignments' })}
+          onLogout={handleLogout}
+        />
+      )
     }
 
     if (user?.role === 'admin') {
@@ -205,7 +214,16 @@ function App() {
       return <AuthPage onLogin={handleLogin} onBack={goToHome} />
     }
 
-    return <TeacherDashboard />
+    return (
+      <TeacherDashboard
+        user={user}
+        onGoCourses={() => navigate({ view: 'teacher-courses' })}
+        onGoLessons={() => navigate({ view: 'teacher-lessons' })}
+        onGoQuizzes={() => navigate({ view: 'teacher-quizzes' })}
+        onGoAssignments={() => navigate({ view: 'teacher-assignments' })}
+        onLogout={handleLogout}
+      />
+    )
   }
 
   if (effectiveRoute.view === 'teacher-courses') {
@@ -213,7 +231,12 @@ function App() {
       return <AuthPage onLogin={handleLogin} onBack={goToHome} />
     }
 
-    return <TeacherCourseManage />
+    return (
+      <TeacherCourseManage
+        onBackToDashboard={() => navigate({ view: 'teacher-dashboard' })}
+        onGoLessons={() => navigate({ view: 'teacher-lessons' })}
+      />
+    )
   }
 
   if (effectiveRoute.view === 'teacher-lessons') {
@@ -221,7 +244,11 @@ function App() {
       return <AuthPage onLogin={handleLogin} onBack={goToHome} />
     }
 
-    return <TeacherLessonManage />
+    return (
+      <TeacherLessonManage
+        onBackToDashboard={() => navigate({ view: 'teacher-dashboard' })}
+      />
+    )
   }
 
   if (effectiveRoute.view === 'teacher-quizzes') {
@@ -229,7 +256,11 @@ function App() {
       return <AuthPage onLogin={handleLogin} onBack={goToHome} />
     }
 
-    return <TeacherQuizManage />
+    return (
+      <TeacherQuizManage
+        onBackToDashboard={() => navigate({ view: 'teacher-dashboard' })}
+      />
+    )
   }
 
   if (effectiveRoute.view === 'teacher-assignments') {
@@ -237,7 +268,11 @@ function App() {
       return <AuthPage onLogin={handleLogin} onBack={goToHome} />
     }
 
-    return <TeacherAssignmentManage />
+    return (
+      <TeacherAssignmentManage
+        onBackToDashboard={() => navigate({ view: 'teacher-dashboard' })}
+      />
+    )
   }
 
   if (effectiveRoute.view === 'admin-dashboard') {
