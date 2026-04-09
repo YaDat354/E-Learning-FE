@@ -1,9 +1,10 @@
+import type { ReactNode } from 'react'
 import type { Course } from '../../data/mockData.ts'
 import StarRating from './StarRating.tsx'
 
 type CourseCardProps = {
   course: Course
-  icon: string
+  icon: ReactNode
   onOpen: (courseId: string) => void
 }
 
@@ -16,7 +17,7 @@ function CourseCard({ course, icon, onOpen }: CourseCardProps) {
           background: `linear-gradient(135deg, ${course.categoryColor}1a, ${course.categoryColor}33)`,
         }}
       >
-        <span>{icon}</span>
+        {icon}
       </div>
 
       <div className="course-card-body">
