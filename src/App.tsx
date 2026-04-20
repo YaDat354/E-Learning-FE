@@ -14,11 +14,10 @@ import StudentLearnPage from './pages/student/LearnPage.tsx'
 import StudentProfile from './pages/student/Profile.tsx'
 import TeacherDashboard from './pages/teacher/Dashboard.tsx'
 import TeacherCourseManage from './pages/teacher/CourseManage.tsx'
+import TeacherCreateCourse from './pages/teacher/CreateCourse.tsx'
 import TeacherLessonManage from './pages/teacher/LessonManage.tsx'
 import TeacherQuizManage from './pages/teacher/QuizManage.tsx'
 import TeacherAssignmentManage from './pages/teacher/AssignmentManage.tsx'
-import AdminCreateCourse from './pages/teacher/CreateCourse.tsx'
-import AdminEditCourse from './pages/teacher/EditCourse.tsx'
 import AdminDashboard from './pages/admin/Dashboard.tsx'
 import AdminUserManage from './pages/admin/UserManage.tsx'
 import AdminCourseManage from './pages/admin/CourseManage.tsx'
@@ -138,6 +137,7 @@ function App() {
           onOpenLesson={goToLesson}
           onOpenCourseList={() => navigate({ view: 'student-courses' })}
           onOpenProfile={() => navigate({ view: 'student-profile' })}
+          onLogout={handleLogout}
         />
       )
     }
@@ -147,6 +147,7 @@ function App() {
         <TeacherDashboard
           user={user}
           onGoCourses={() => navigate({ view: 'teacher-courses' })}
+          onGoCreateCourse={() => navigate({ view: 'teacher-create-course' })}
           onGoLessons={() => navigate({ view: 'teacher-lessons' })}
           onGoQuizzes={() => navigate({ view: 'teacher-quizzes' })}
           onGoAssignments={() => navigate({ view: 'teacher-assignments' })}
@@ -196,6 +197,7 @@ function App() {
         onOpenLesson={goToLesson}
         onOpenCourseList={() => navigate({ view: 'student-courses' })}
         onOpenProfile={() => navigate({ view: 'student-profile' })}
+        onLogout={handleLogout}
       />
     )
   }
@@ -209,6 +211,7 @@ function App() {
       <StudentCourseList
         onOpenCourse={(courseId) => navigate({ view: 'course', courseId })}
         onBackToDashboard={() => navigate({ view: 'student-dashboard' })}
+        onLogout={handleLogout}
       />
     )
   }
@@ -236,6 +239,7 @@ function App() {
       <TeacherDashboard
         user={user}
         onGoCourses={() => navigate({ view: 'teacher-courses' })}
+        onGoCreateCourse={() => navigate({ view: 'teacher-create-course' })}
         onGoLessons={() => navigate({ view: 'teacher-lessons' })}
         onGoQuizzes={() => navigate({ view: 'teacher-quizzes' })}
         onGoAssignments={() => navigate({ view: 'teacher-assignments' })}
@@ -252,7 +256,20 @@ function App() {
     return (
       <TeacherCourseManage
         onBackToDashboard={() => navigate({ view: 'teacher-dashboard' })}
+        onGoCreateCourse={() => navigate({ view: 'teacher-create-course' })}
         onGoLessons={() => navigate({ view: 'teacher-lessons' })}
+      />
+    )
+  }
+
+  if (effectiveRoute.view === 'teacher-create-course') {
+    if (!user || user.role !== 'teacher') {
+      return <AuthPage onLogin={handleLogin} onBack={goToHome} />
+    }
+
+    return (
+      <TeacherCreateCourse
+        onBackToDashboard={() => navigate({ view: 'teacher-courses' })}
       />
     )
   }
@@ -290,51 +307,6 @@ function App() {
       <TeacherAssignmentManage
         onBackToDashboard={() => navigate({ view: 'teacher-dashboard' })}
       />
-    )
-  }
-
-  if (effectiveRoute.view === 'admin-create-course') {
-    if (!user || user.role !== 'admin') {
-      return <AuthPage onLogin={handleLogin} onBack={goToHome} />
-    }
-
-    return (
-      <AdminLayout
-        user={user}
-        activeView="create-course"
-        onGoDashboard={() => navigate({ view: 'admin-dashboard' })}
-        onGoCourses={() => navigate({ view: 'admin-courses' })}
-        onGoUsers={() => navigate({ view: 'admin-users' })}
-        onLogout={handleLogout}
-      >
-        <AdminCreateCourse
-          onBackToDashboard={() => navigate({ view: 'admin-courses' })}
-          onCreated={() => navigate({ view: 'admin-courses' })}
-        />
-      </AdminLayout>
-    )
-  }
-
-  if (effectiveRoute.view === 'admin-edit-course') {
-    if (!user || user.role !== 'admin') {
-      return <AuthPage onLogin={handleLogin} onBack={goToHome} />
-    }
-
-    return (
-      <AdminLayout
-        user={user}
-        activeView="edit-course"
-        onGoDashboard={() => navigate({ view: 'admin-dashboard' })}
-        onGoCourses={() => navigate({ view: 'admin-courses' })}
-        onGoUsers={() => navigate({ view: 'admin-users' })}
-        onLogout={handleLogout}
-      >
-        <AdminEditCourse
-          courseId={effectiveRoute.courseId}
-          onBackToDashboard={() => navigate({ view: 'admin-courses' })}
-          onUpdated={() => navigate({ view: 'admin-courses' })}
-        />
-      </AdminLayout>
     )
   }
 
@@ -398,8 +370,6 @@ function App() {
       >
         <AdminCourseManage
           onBackToDashboard={() => navigate({ view: 'admin-dashboard' })}
-          onCreateCourse={() => navigate({ view: 'admin-create-course' })}
-          onEditCourse={(courseId) => navigate({ view: 'admin-edit-course', courseId })}
         />
       </AdminLayout>
     )

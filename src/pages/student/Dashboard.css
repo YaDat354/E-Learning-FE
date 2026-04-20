@@ -53,6 +53,11 @@
 	color: #0f172a;
 }
 
+.student-btn.danger {
+	background: #dc2626;
+	color: #fff;
+}
+
 .student-grid {
 	display: grid;
 	grid-template-columns: repeat(3, minmax(0, 1fr));

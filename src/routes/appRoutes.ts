@@ -6,12 +6,11 @@ export type Route =
   | { view: 'student-profile' }
   | { view: 'teacher-dashboard' }
   | { view: 'teacher-courses' }
+  | { view: 'teacher-create-course' }
   | { view: 'teacher-lessons' }
   | { view: 'teacher-quizzes' }
   | { view: 'teacher-assignments' }
   | { view: 'admin-dashboard' }
-  | { view: 'admin-create-course' }
-  | { view: 'admin-edit-course'; courseId: string }
   | { view: 'admin-users' }
   | { view: 'admin-courses' }
   | { view: 'course'; courseId: string }
@@ -48,6 +47,10 @@ export function parsePath(pathname: string): Route {
     return { view: 'teacher-courses' }
   }
 
+  if (parts.length === 2 && parts[0] === 'giang-vien' && parts[1] === 'tao-khoa-hoc') {
+    return { view: 'teacher-create-course' }
+  }
+
   if (parts.length === 2 && parts[0] === 'giang-vien' && parts[1] === 'bai-hoc') {
     return { view: 'teacher-lessons' }
   }
@@ -60,12 +63,13 @@ export function parsePath(pathname: string): Route {
     return { view: 'teacher-assignments' }
   }
 
+  // Legacy admin course-editing URLs now route to read-only course management.
   if (parts.length === 2 && parts[0] === 'admin' && parts[1] === 'tao-khoa-hoc') {
-    return { view: 'admin-create-course' }
+    return { view: 'admin-courses' }
   }
 
   if (parts.length === 3 && parts[0] === 'admin' && parts[1] === 'sua-khoa-hoc') {
-    return { view: 'admin-edit-course', courseId: decodeURIComponent(parts[2]) }
+    return { view: 'admin-courses' }
   }
 
   if (parts.length === 2 && parts[0] === 'admin' && parts[1] === 'dashboard') {
@@ -124,6 +128,10 @@ export function buildPath(route: Route): string {
     return '/giang-vien/khoa-hoc'
   }
 
+  if (route.view === 'teacher-create-course') {
+    return '/giang-vien/tao-khoa-hoc'
+  }
+
   if (route.view === 'teacher-lessons') {
     return '/giang-vien/bai-hoc'
   }
@@ -134,14 +142,6 @@ export function buildPath(route: Route): string {
 
   if (route.view === 'teacher-assignments') {
     return '/giang-vien/bai-tap'
-  }
-
-  if (route.view === 'admin-create-course') {
-    return '/admin/tao-khoa-hoc'
-  }
-
-  if (route.view === 'admin-edit-course') {
-    return `/admin/sua-khoa-hoc/${encodeURIComponent(route.courseId)}`
   }
 
   if (route.view === 'admin-dashboard') {

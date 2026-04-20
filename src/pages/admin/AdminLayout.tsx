@@ -9,7 +9,7 @@ import {
 import type { User } from '../../data/mockData.ts'
 import './AdminLayout.css'
 
-export type AdminActiveView = 'dashboard' | 'courses' | 'users' | 'create-course' | 'edit-course'
+export type AdminActiveView = 'dashboard' | 'courses' | 'users'
 
 type Props = {
   user: User
@@ -34,8 +34,7 @@ function AdminLayout({ user, activeView, onGoDashboard, onGoCourses, onGoUsers, 
     users: onGoUsers,
   }
 
-  // create-course and edit-course both highlight 'courses'
-  const highlight = activeView === 'create-course' || activeView === 'edit-course' ? 'courses' : activeView
+  const highlight = activeView
 
   return (
     <div className="al-root">

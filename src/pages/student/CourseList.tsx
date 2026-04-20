@@ -5,9 +5,10 @@ import './CourseList.css'
 type CourseListProps = {
 	onOpenCourse: (courseId: string) => void
 	onBackToDashboard: () => void
+	onLogout: () => void
 }
 
-function CourseList({ onOpenCourse, onBackToDashboard }: CourseListProps) {
+function CourseList({ onOpenCourse, onBackToDashboard, onLogout }: CourseListProps) {
 	const [query, setQuery] = useState('')
 	const [level, setLevel] = useState<'all' | 'Cơ bản' | 'Trung cấp' | 'Nâng cao'>('all')
 
@@ -27,7 +28,10 @@ function CourseList({ onOpenCourse, onBackToDashboard }: CourseListProps) {
 						<h1 className="student-title">Khóa học dành cho học viên</h1>
 						<p className="student-subtitle">Lọc nhanh để chọn lộ trình phù hợp</p>
 					</div>
-					<button className="student-btn ghost" onClick={onBackToDashboard}>Về Dashboard</button>
+					<div className="student-toolbar">
+						<button className="student-btn ghost" onClick={onBackToDashboard}>Về Dashboard</button>
+						<button className="student-btn danger" onClick={onLogout}>Đăng xuất</button>
+					</div>
 				</header>
 
 				<div className="student-toolbar">

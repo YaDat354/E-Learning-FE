@@ -87,6 +87,16 @@
 	cursor: pointer;
 }
 
+.student-btn.ghost {
+	background: #e2e8f0;
+	color: #0f172a;
+}
+
+.student-btn.danger {
+	background: #dc2626;
+	color: #fff;
+}
+
 @media (max-width: 900px) {
 	.student-page {
 		padding: 16px;

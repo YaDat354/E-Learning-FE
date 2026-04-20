@@ -5,6 +5,7 @@ import './CourseManage.css'
 
 type Props = {
 	onBackToDashboard: () => void
+	onGoCreateCourse: () => void
 	onGoLessons: () => void
 }
 
@@ -14,7 +15,7 @@ function levelClass(level: string) {
 	return 'teacher-level-badge teacher-level-advanced'
 }
 
-function CourseManage({ onBackToDashboard, onGoLessons }: Props) {
+function CourseManage({ onBackToDashboard, onGoCreateCourse, onGoLessons }: Props) {
 	const [query, setQuery] = useState('')
 	const [courses, setCourses] = useState<Course[]>(COURSES)
 	const [editingId, setEditingId] = useState<string | null>(null)
@@ -60,6 +61,9 @@ function CourseManage({ onBackToDashboard, onGoLessons }: Props) {
 						</p>
 					</div>
 					<div className="teacher-toolbar">
+						<button className="teacher-btn" onClick={onGoCreateCourse}>
+							+ Tạo khóa học
+						</button>
 						<button className="teacher-btn ghost" onClick={onGoLessons}>
 							Bài học
 						</button>

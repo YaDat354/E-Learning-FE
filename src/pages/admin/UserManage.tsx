@@ -23,7 +23,6 @@ const totalStudents = COURSES.reduce((sum, c) => sum + c.studentCount, 0)
 
 function UserManage({ onBackToDashboard }: Props) {
 	const [query, setQuery] = useState('')
-	const [roleFilter, setRoleFilter] = useState<User['role'] | 'all'>('all')
 
 	const filtered = useMemo(() => {
 		return MOCK_USERS.filter((u) => {
@@ -31,10 +30,32 @@ function UserManage({ onBackToDashboard }: Props) {
 				!query.trim() ||
 				u.name.toLowerCase().includes(query.toLowerCase()) ||
 				u.email.toLowerCase().includes(query.toLowerCase())
-			const matchRole = roleFilter === 'all' || u.role === roleFilter
-			return matchQuery && matchRole
+			return matchQuery
 		})
-	}, [query, roleFilter])
+	}, [query])
+
+	const adminUsers = useMemo(
+		() => filtered.filter((user) => user.role === 'admin'),
+		[filtered]
+	)
+
+	const teacherUsers = useMemo(
+		() => filtered.filter((user) => user.role === 'teacher'),
+		[filtered]
+	)
+
+	const studentUsers = useMemo(
+		() => filtered.filter((user) => user.role === 'student'),
+		[filtered]
+	)
+
+	const teacherCourseMap = useMemo(() => {
+		const counts = new Map<string, number>()
+		for (const course of COURSES) {
+			counts.set(course.instructor, (counts.get(course.instructor) ?? 0) + 1)
+		}
+		return counts
+	}, [])
 
 	const roleClass = (role: User['role']) => {
 		if (role === 'admin') return 'admin-badge admin-role-admin'
@@ -49,7 +70,7 @@ function UserManage({ onBackToDashboard }: Props) {
 					<div>
 						<h1 className="admin-title">Quản lý người dùng</h1>
 						<p className="admin-subtitle">
-							{MOCK_USERS.length} tài khoản · {totalStudents.toLocaleString()} học viên đăng ký
+							{teacherUsers.length} giảng viên · {studentUsers.length} học viên · {totalStudents.toLocaleString()} lượt đăng ký
 						</p>
 					</div>
 					<div className="admin-toolbar">
@@ -62,56 +83,112 @@ function UserManage({ onBackToDashboard }: Props) {
 				<div className="admin-toolbar">
 					<input
 						className="admin-input"
-						style={{ minWidth: 240 }}
+						style={{ minWidth: 320 }}
 						value={query}
 						onChange={(e) => setQuery(e.target.value)}
 						placeholder="Tìm tên hoặc email..."
 					/>
-					<select
-						className="admin-select"
-						value={roleFilter}
-						onChange={(e) => setRoleFilter(e.target.value as typeof roleFilter)}
-					>
-						<option value="all">Tất cả vai trò</option>
-						<option value="admin">Quản trị viên</option>
-						<option value="teacher">Giảng viên</option>
-						<option value="student">Học viên</option>
-					</select>
 				</div>
 
-				<section className="admin-panel">
-					<table className="admin-table">
-						<thead>
-							<tr>
-								<th>Họ tên</th>
-								<th>Email</th>
-								<th>Vai trò</th>
-							</tr>
-						</thead>
-						<tbody>
-							{filtered.map((user) => (
-								<tr key={user.email}>
-									<td>
-										<span className="admin-list-title">{user.name}</span>
-									</td>
-									<td className="admin-list-meta">{user.email}</td>
-									<td>
-										<span className={roleClass(user.role)}>
-											{ROLE_LABELS[user.role]}
-										</span>
-									</td>
-								</tr>
-							))}
-							{filtered.length === 0 && (
+				{adminUsers.length > 0 && (
+					<section className="admin-panel">
+						<h3>Tài khoản quản trị</h3>
+						<table className="admin-table">
+							<thead>
 								<tr>
-									<td colSpan={3} style={{ textAlign: 'center', color: '#94a3b8', padding: 32 }}>
-										Không tìm thấy người dùng nào
-									</td>
+									<th>Họ tên</th>
+									<th>Email</th>
+									<th>Vai trò</th>
 								</tr>
-							)}
-						</tbody>
-					</table>
-				</section>
+							</thead>
+							<tbody>
+								{adminUsers.map((user) => (
+									<tr key={user.email}>
+										<td>
+											<span className="admin-list-title">{user.name}</span>
+										</td>
+										<td className="admin-list-meta">{user.email}</td>
+										<td>
+											<span className={roleClass(user.role)}>{ROLE_LABELS[user.role]}</span>
+										</td>
+									</tr>
+								))}
+							</tbody>
+						</table>
+					</section>
+				)}
+
+				<div className="admin-user-grid">
+					<section className="admin-panel">
+						<h3>Giảng viên ({teacherUsers.length})</h3>
+						<table className="admin-table">
+							<thead>
+								<tr>
+									<th>Họ tên</th>
+									<th>Email</th>
+									<th>Khóa học phụ trách</th>
+								</tr>
+							</thead>
+							<tbody>
+								{teacherUsers.map((user) => (
+									<tr key={user.email}>
+										<td>
+											<span className="admin-list-title">{user.name}</span>
+										</td>
+										<td className="admin-list-meta">{user.email}</td>
+										<td>{teacherCourseMap.get(user.name) ?? 0}</td>
+									</tr>
+								))}
+								{teacherUsers.length === 0 && (
+									<tr>
+										<td colSpan={3} style={{ textAlign: 'center', color: '#94a3b8', padding: 24 }}>
+											Không có giảng viên phù hợp bộ lọc
+										</td>
+									</tr>
+								)}
+							</tbody>
+						</table>
+					</section>
+
+					<section className="admin-panel">
+						<h3>Học viên ({studentUsers.length})</h3>
+						<table className="admin-table">
+							<thead>
+								<tr>
+									<th>Họ tên</th>
+									<th>Email</th>
+									<th>Vai trò</th>
+								</tr>
+							</thead>
+							<tbody>
+								{studentUsers.map((user) => (
+									<tr key={user.email}>
+										<td>
+											<span className="admin-list-title">{user.name}</span>
+										</td>
+										<td className="admin-list-meta">{user.email}</td>
+										<td>
+											<span className={roleClass(user.role)}>{ROLE_LABELS[user.role]}</span>
+										</td>
+									</tr>
+								))}
+								{studentUsers.length === 0 && (
+									<tr>
+										<td colSpan={3} style={{ textAlign: 'center', color: '#94a3b8', padding: 24 }}>
+											Không có học viên phù hợp bộ lọc
+										</td>
+									</tr>
+								)}
+							</tbody>
+						</table>
+					</section>
+				</div>
+
+				{filtered.length === 0 && (
+					<section className="admin-panel">
+						<p style={{ textAlign: 'center', color: '#94a3b8', margin: 0 }}>Không tìm thấy người dùng nào</p>
+					</section>
+				)}
 			</div>
 		</section>
 	)

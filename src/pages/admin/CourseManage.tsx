@@ -1,35 +1,21 @@
 import { useMemo, useState } from 'react'
 import { COURSES } from '../../data/mockData.ts'
-import type { Course } from '../../data/mockData.ts'
 import './CourseManage.css'
 
 type Props = {
 	onBackToDashboard: () => void
-	onCreateCourse: () => void
-	onEditCourse: (courseId: string) => void
 }
 
-function CourseManage({ onBackToDashboard, onCreateCourse, onEditCourse }: Props) {
+function CourseManage({ onBackToDashboard }: Props) {
 	const [query, setQuery] = useState('')
-	const [courses, setCourses] = useState<Course[]>(COURSES)
-	const [deletingId, setDeletingId] = useState<string | null>(null)
 
 	const filtered = useMemo(() => {
-		if (!query.trim()) return courses
-		return courses.filter((c) =>
+		if (!query.trim()) return COURSES
+		return COURSES.filter((c) =>
 			c.title.toLowerCase().includes(query.toLowerCase()) ||
 			c.instructor.toLowerCase().includes(query.toLowerCase())
 		)
-	}, [courses, query])
-
-	const handleDelete = (courseId: string) => {
-		if (deletingId === courseId) {
-			setCourses((prev) => prev.filter((c) => c.id !== courseId))
-			setDeletingId(null)
-		} else {
-			setDeletingId(courseId)
-		}
-	}
+	}, [query])
 
 	return (
 		<section className="admin-page">
@@ -38,13 +24,10 @@ function CourseManage({ onBackToDashboard, onCreateCourse, onEditCourse }: Props
 					<div>
 						<h1 className="admin-title">Quản lý khóa học</h1>
 						<p className="admin-subtitle">
-							{courses.length} khóa học · Toàn bộ hệ thống
+							{COURSES.length} khóa học · Admin theo dõi và kiểm duyệt
 						</p>
 					</div>
 					<div className="admin-toolbar">
-						<button className="admin-btn" onClick={onCreateCourse}>
-							+ Tạo khóa học
-						</button>
 						<button className="admin-btn ghost" onClick={onBackToDashboard}>
 							Về Dashboard
 						</button>
@@ -71,7 +54,6 @@ function CourseManage({ onBackToDashboard, onCreateCourse, onEditCourse }: Props
 								<th>Bài học</th>
 								<th>Học viên</th>
 								<th>Giá (₫)</th>
-								<th></th>
 							</tr>
 						</thead>
 						<tbody>
@@ -95,40 +77,11 @@ function CourseManage({ onBackToDashboard, onCreateCourse, onEditCourse }: Props
 									<td>{course.lessons.length}</td>
 									<td>{course.studentCount.toLocaleString()}</td>
 									<td>{course.price.toLocaleString()}</td>
-									<td>
-										<div className="admin-actions">
-											<button
-												className="admin-action-btn"
-												onClick={() => onEditCourse(course.id)}
-											>
-												Chỉnh sửa
-											</button>
-											<button
-												className="admin-action-btn"
-												style={
-													deletingId === course.id
-														? { background: '#fef2f2', borderColor: '#ef4444', color: '#ef4444' }
-														: {}
-												}
-												onClick={() => handleDelete(course.id)}
-											>
-												{deletingId === course.id ? 'Xác nhận xóa' : 'Xóa'}
-											</button>
-											{deletingId === course.id && (
-												<button
-													className="admin-action-btn"
-													onClick={() => setDeletingId(null)}
-												>
-													Hủy
-												</button>
-											)}
-										</div>
-									</td>
 								</tr>
 							))}
 							{filtered.length === 0 && (
 								<tr>
-									<td colSpan={7} style={{ textAlign: 'center', color: '#94a3b8', padding: 32 }}>
+									<td colSpan={6} style={{ textAlign: 'center', color: '#94a3b8', padding: 32 }}>
 										Không tìm thấy khóa học nào
 									</td>
 								</tr>

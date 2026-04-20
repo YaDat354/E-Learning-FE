@@ -57,7 +57,7 @@ function Dashboard({ onGoCourses, onGoUsers, onLogout }: Props) {
 				<div className="admin-nav-grid">
 					<button className="admin-nav-box" onClick={onGoCourses}>
 						<h4>Quản lý khóa học</h4>
-						<p>Tạo, chỉnh sửa và xóa các khóa học</p>
+						<p>Xem, theo dõi và kiểm duyệt danh sách khóa học</p>
 					</button>
 					<button className="admin-nav-box" onClick={onGoUsers}>
 						<h4>Quản lý người dùng</h4>

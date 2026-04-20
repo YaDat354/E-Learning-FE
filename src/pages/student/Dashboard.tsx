@@ -8,9 +8,10 @@ type DashboardProps = {
 	onOpenLesson: (courseId: string, lessonId: string) => void
 	onOpenCourseList: () => void
 	onOpenProfile: () => void
+	onLogout: () => void
 }
 
-function Dashboard({ user, onOpenCourse, onOpenLesson, onOpenCourseList, onOpenProfile }: DashboardProps) {
+function Dashboard({ user, onOpenCourse, onOpenLesson, onOpenCourseList, onOpenProfile, onLogout }: DashboardProps) {
 	const totalLessons = COURSES.reduce((sum, course) => sum + course.lessons.length, 0)
 	const freeLessons = COURSES.reduce((sum, course) => sum + course.lessons.filter((lesson) => lesson.isFree).length, 0)
 
@@ -32,6 +33,7 @@ function Dashboard({ user, onOpenCourse, onOpenLesson, onOpenCourseList, onOpenP
 						<button className="student-btn ghost" onClick={onOpenCourseList}>Danh sách khóa học</button>
 						<button className="student-btn ghost" onClick={onOpenProfile}>Hồ sơ</button>
 						<button className="student-btn" onClick={() => onOpenCourse(COURSES[0].id)}>Tiếp tục học</button>
+						<button className="student-btn danger" onClick={onLogout}>Đăng xuất</button>
 					</div>
 				</header>
 

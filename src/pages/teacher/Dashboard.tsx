@@ -5,13 +5,14 @@ import './Dashboard.css'
 type Props = {
 	user: User
 	onGoCourses: () => void
+	onGoCreateCourse: () => void
 	onGoLessons: () => void
 	onGoQuizzes: () => void
 	onGoAssignments: () => void
 	onLogout: () => void
 }
 
-function Dashboard({ user, onGoCourses, onGoLessons, onGoQuizzes, onGoAssignments, onLogout }: Props) {
+function Dashboard({ user, onGoCourses, onGoCreateCourse, onGoLessons, onGoQuizzes, onGoAssignments, onLogout }: Props) {
 	const totalStudents = COURSES.reduce((sum, c) => sum + c.studentCount, 0)
 	const totalLessons = COURSES.reduce((sum, c) => sum + c.lessons.length, 0)
 	const totalQuizzes = COURSES.reduce(
@@ -32,6 +33,9 @@ function Dashboard({ user, onGoCourses, onGoLessons, onGoQuizzes, onGoAssignment
 					<div className="teacher-toolbar">
 						<button className="teacher-btn ghost" onClick={onGoCourses}>
 							Khóa học
+						</button>
+						<button className="teacher-btn" onClick={onGoCreateCourse}>
+							+ Tạo khóa học
 						</button>
 						<button className="teacher-btn ghost" onClick={onGoLessons}>
 							Bài học
@@ -67,6 +71,10 @@ function Dashboard({ user, onGoCourses, onGoLessons, onGoQuizzes, onGoAssignment
 					<button className="teacher-quick-btn" onClick={onGoCourses}>
 						<span className="teacher-quick-icon">📚</span>
 						<span>Quản lý khóa học</span>
+					</button>
+					<button className="teacher-quick-btn" onClick={onGoCreateCourse}>
+						<span className="teacher-quick-icon">➕</span>
+						<span>Tạo khóa học mới</span>
 					</button>
 					<button className="teacher-quick-btn" onClick={onGoLessons}>
 						<span className="teacher-quick-icon">🎬</span>
