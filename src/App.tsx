@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { User } from './data/mockData.ts'
+import type { Course, User } from './data/mockData.ts'
 import { COURSES } from './data/mockData.ts'
 import { buildPath, parsePath, type Route } from './routes/appRoutes.ts'
 import { inferRoleFromEmail } from './utils/auth.ts'
@@ -101,6 +101,11 @@ function App() {
     setUser(null)
     setRedirectAfterAuth(null)
     navigate({ view: 'home' })
+  }
+
+  const handleTeacherCourseCreated = (course: Course) => {
+    // Local FE uses mock data as source of truth; push new course so next views can read it.
+    COURSES.unshift(course)
   }
 
   const goToLesson = (courseId: string, lessonId: string) => {
@@ -269,6 +274,7 @@ function App() {
 
     return (
       <TeacherCreateCourse
+        onCreated={handleTeacherCourseCreated}
         onBackToDashboard={() => navigate({ view: 'teacher-courses' })}
       />
     )

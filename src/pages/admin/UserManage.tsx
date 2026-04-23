@@ -7,7 +7,7 @@ type Props = {
 	onBackToDashboard: () => void
 }
 
-const MOCK_USERS: User[] = [
+const INITIAL_USERS: User[] = [
 	{ name: 'Admin Hệ thống', email: 'admin@elearn.vn', role: 'admin' },
 	{ name: 'Cô Mai Anh', email: 'maianh.teacher@elearn.vn', role: 'teacher' },
 	{ name: 'Thầy Minh Đức', email: 'minhduc.teacher@elearn.vn', role: 'teacher' },
@@ -23,16 +23,112 @@ const totalStudents = COURSES.reduce((sum, c) => sum + c.studentCount, 0)
 
 function UserManage({ onBackToDashboard }: Props) {
 	const [query, setQuery] = useState('')
+	const [users, setUsers] = useState<User[]>(INITIAL_USERS)
+	const [name, setName] = useState('')
+	const [email, setEmail] = useState('')
+	const [role, setRole] = useState<User['role']>('student')
+	const [editingEmail, setEditingEmail] = useState<string | null>(null)
+
+	const isEditing = Boolean(editingEmail)
+
+	const resetForm = () => {
+		setName('')
+		setEmail('')
+		setRole('student')
+		setEditingEmail(null)
+	}
+
+	const isEmailUsed = (value: string, exceptEmail?: string | null) =>
+		users.some((user) => user.email.toLowerCase() === value.toLowerCase() && user.email !== exceptEmail)
+
+	const handleCreate = () => {
+		const normalizedName = name.trim()
+		const normalizedEmail = email.trim().toLowerCase()
+
+		if (!normalizedName || !normalizedEmail) {
+			alert('Vui lòng nhập họ tên và email')
+			return
+		}
+
+		if (isEmailUsed(normalizedEmail)) {
+			alert('Email đã tồn tại')
+			return
+		}
+
+		const newUser: User = {
+			name: normalizedName,
+			email: normalizedEmail,
+			role,
+		}
+
+		setUsers((prev) => [newUser, ...prev])
+		resetForm()
+	}
+
+	const startEdit = (user: User) => {
+		setEditingEmail(user.email)
+		setName(user.name)
+		setEmail(user.email)
+		setRole(user.role)
+	}
+
+	const handleSaveEdit = () => {
+		if (!editingEmail) {
+			return
+		}
+
+		const normalizedName = name.trim()
+		const normalizedEmail = email.trim().toLowerCase()
+
+		if (!normalizedName || !normalizedEmail) {
+			alert('Vui lòng nhập họ tên và email')
+			return
+		}
+
+		if (isEmailUsed(normalizedEmail, editingEmail)) {
+			alert('Email đã tồn tại')
+			return
+		}
+
+		setUsers((prev) =>
+			prev.map((user) =>
+				user.email === editingEmail
+					? { name: normalizedName, email: normalizedEmail, role }
+					: user,
+			),
+		)
+		resetForm()
+	}
+
+	const handleDelete = (user: User) => {
+		if (user.role === 'admin') {
+			const adminCount = users.filter((item) => item.role === 'admin').length
+			if (adminCount <= 1) {
+				alert('Phải còn ít nhất 1 tài khoản admin')
+				return
+			}
+		}
+
+		const isConfirmed = window.confirm(`Xóa người dùng "${user.name}"?`)
+		if (!isConfirmed) {
+			return
+		}
+
+		setUsers((prev) => prev.filter((item) => item.email !== user.email))
+		if (editingEmail === user.email) {
+			resetForm()
+		}
+	}
 
 	const filtered = useMemo(() => {
-		return MOCK_USERS.filter((u) => {
+		return users.filter((u) => {
 			const matchQuery =
 				!query.trim() ||
 				u.name.toLowerCase().includes(query.toLowerCase()) ||
 				u.email.toLowerCase().includes(query.toLowerCase())
 			return matchQuery
 		})
-	}, [query])
+	}, [query, users])
 
 	const adminUsers = useMemo(
 		() => filtered.filter((user) => user.role === 'admin'),
@@ -80,6 +176,51 @@ function UserManage({ onBackToDashboard }: Props) {
 					</div>
 				</header>
 
+				<section className="admin-edit-panel">
+					<h4>{isEditing ? 'Sửa người dùng' : 'Thêm người dùng mới'}</h4>
+					<div className="admin-form-grid" style={{ marginBottom: 12 }}>
+						<div>
+							<label className="admin-form-label">Họ tên</label>
+							<input
+								className="admin-input admin-input-full"
+								value={name}
+								onChange={(e) => setName(e.target.value)}
+								placeholder="VD: Nguyễn Văn A"
+							/>
+						</div>
+						<div>
+							<label className="admin-form-label">Email</label>
+							<input
+								className="admin-input admin-input-full"
+								type="email"
+								value={email}
+								onChange={(e) => setEmail(e.target.value)}
+								placeholder="example@domain.com"
+							/>
+						</div>
+						<div>
+							<label className="admin-form-label">Vai trò</label>
+							<select
+								className="admin-select admin-input-full"
+								value={role}
+								onChange={(e) => setRole(e.target.value as User['role'])}
+							>
+								<option value="student">Học viên</option>
+								<option value="teacher">Giảng viên</option>
+								<option value="admin">Quản trị viên</option>
+							</select>
+						</div>
+					</div>
+					<div className="admin-actions">
+						<button className="admin-btn" onClick={isEditing ? handleSaveEdit : handleCreate}>
+							{isEditing ? 'Lưu thay đổi' : 'Thêm người dùng'}
+						</button>
+						<button className="admin-btn ghost" onClick={resetForm}>
+							Làm mới form
+						</button>
+					</div>
+				</section>
+
 				<div className="admin-toolbar">
 					<input
 						className="admin-input"
@@ -99,6 +240,7 @@ function UserManage({ onBackToDashboard }: Props) {
 									<th>Họ tên</th>
 									<th>Email</th>
 									<th>Vai trò</th>
+									<th>Hành động</th>
 								</tr>
 							</thead>
 							<tbody>
@@ -110,6 +252,12 @@ function UserManage({ onBackToDashboard }: Props) {
 										<td className="admin-list-meta">{user.email}</td>
 										<td>
 											<span className={roleClass(user.role)}>{ROLE_LABELS[user.role]}</span>
+										</td>
+										<td>
+											<div className="admin-actions">
+												<button className="admin-action-btn" onClick={() => startEdit(user)}>Sửa</button>
+												<button className="admin-action-btn" onClick={() => handleDelete(user)}>Xóa</button>
+											</div>
 										</td>
 									</tr>
 								))}
@@ -127,6 +275,7 @@ function UserManage({ onBackToDashboard }: Props) {
 									<th>Họ tên</th>
 									<th>Email</th>
 									<th>Khóa học phụ trách</th>
+									<th>Hành động</th>
 								</tr>
 							</thead>
 							<tbody>
@@ -137,11 +286,17 @@ function UserManage({ onBackToDashboard }: Props) {
 										</td>
 										<td className="admin-list-meta">{user.email}</td>
 										<td>{teacherCourseMap.get(user.name) ?? 0}</td>
+										<td>
+											<div className="admin-actions">
+												<button className="admin-action-btn" onClick={() => startEdit(user)}>Sửa</button>
+												<button className="admin-action-btn" onClick={() => handleDelete(user)}>Xóa</button>
+											</div>
+										</td>
 									</tr>
 								))}
 								{teacherUsers.length === 0 && (
 									<tr>
-										<td colSpan={3} style={{ textAlign: 'center', color: '#94a3b8', padding: 24 }}>
+										<td colSpan={4} style={{ textAlign: 'center', color: '#94a3b8', padding: 24 }}>
 											Không có giảng viên phù hợp bộ lọc
 										</td>
 									</tr>
@@ -158,6 +313,7 @@ function UserManage({ onBackToDashboard }: Props) {
 									<th>Họ tên</th>
 									<th>Email</th>
 									<th>Vai trò</th>
+									<th>Hành động</th>
 								</tr>
 							</thead>
 							<tbody>
@@ -170,11 +326,17 @@ function UserManage({ onBackToDashboard }: Props) {
 										<td>
 											<span className={roleClass(user.role)}>{ROLE_LABELS[user.role]}</span>
 										</td>
+										<td>
+											<div className="admin-actions">
+												<button className="admin-action-btn" onClick={() => startEdit(user)}>Sửa</button>
+												<button className="admin-action-btn" onClick={() => handleDelete(user)}>Xóa</button>
+											</div>
+										</td>
 									</tr>
 								))}
 								{studentUsers.length === 0 && (
 									<tr>
-										<td colSpan={3} style={{ textAlign: 'center', color: '#94a3b8', padding: 24 }}>
+										<td colSpan={4} style={{ textAlign: 'center', color: '#94a3b8', padding: 24 }}>
 											Không có học viên phù hợp bộ lọc
 										</td>
 									</tr>
