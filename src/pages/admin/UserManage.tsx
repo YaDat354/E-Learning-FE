@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Edit2, Trash2 } from 'lucide-react'
 import { COURSES, ROLE_LABELS } from '../../data/mockData.ts'
 import type { User } from '../../data/mockData.ts'
 import './UserManage.css'
@@ -255,8 +256,12 @@ function UserManage({ onBackToDashboard }: Props) {
 										</td>
 										<td>
 											<div className="admin-actions">
-												<button className="admin-action-btn" onClick={() => startEdit(user)}>Sửa</button>
-												<button className="admin-action-btn" onClick={() => handleDelete(user)}>Xóa</button>
+												<button className="admin-action-btn" onClick={() => startEdit(user)} title="Sửa">
+													<Edit2 size={18} />
+												</button>
+												<button className="admin-action-btn" onClick={() => handleDelete(user)} title="Xóa">
+													<Trash2 size={18} />
+												</button>
 											</div>
 										</td>
 									</tr>
@@ -288,8 +293,12 @@ function UserManage({ onBackToDashboard }: Props) {
 										<td>{teacherCourseMap.get(user.name) ?? 0}</td>
 										<td>
 											<div className="admin-actions">
-												<button className="admin-action-btn" onClick={() => startEdit(user)}>Sửa</button>
-												<button className="admin-action-btn" onClick={() => handleDelete(user)}>Xóa</button>
+												<button className="admin-action-btn" onClick={() => startEdit(user)} title="Sửa">
+													<Edit2 size={18} />
+												</button>
+												<button className="admin-action-btn" onClick={() => handleDelete(user)} title="Xóa">
+													<Trash2 size={18} />
+												</button>
 											</div>
 										</td>
 									</tr>
@@ -328,8 +337,12 @@ function UserManage({ onBackToDashboard }: Props) {
 										</td>
 										<td>
 											<div className="admin-actions">
-												<button className="admin-action-btn" onClick={() => startEdit(user)}>Sửa</button>
-												<button className="admin-action-btn" onClick={() => handleDelete(user)}>Xóa</button>
+											<button className="admin-action-btn" onClick={() => startEdit(user)} title="Sửa">
+												<Edit2 size={18} />
+											</button>
+											<button className="admin-action-btn" onClick={() => handleDelete(user)} title="Xóa">
+												<Trash2 size={18} />
+											</button>
 											</div>
 										</td>
 									</tr>
