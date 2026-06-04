@@ -215,6 +215,7 @@ function LessonManage({ onBackToDashboard }: Props) {
 										<VideoPlayer
 											title={lesson.title}
 											duration={lesson.duration}
+											videoId={lesson.videoId}
 											script={lesson.videoScript}
 											keyPhrases={lesson.keyPhrases}
 										/>

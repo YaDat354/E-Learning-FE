@@ -119,11 +119,33 @@ function buildInitialsFromName(name: string): string {
 }
 
 function normalizeLesson(lesson: Partial<Lesson>): Lesson {
+	const rawLesson = asRecord(lesson)
+	const resolvedVideoId =
+		typeof lesson.videoId === 'string' && lesson.videoId.trim().length > 0
+			? lesson.videoId
+			: typeof rawLesson.videoUrl === 'string' && rawLesson.videoUrl.trim().length > 0
+				? rawLesson.videoUrl
+				: typeof rawLesson.video_url === 'string' && rawLesson.video_url.trim().length > 0
+					? rawLesson.video_url
+					: typeof rawLesson.youtubeUrl === 'string' && rawLesson.youtubeUrl.trim().length > 0
+						? rawLesson.youtubeUrl
+						: typeof rawLesson.youtube_url === 'string' && rawLesson.youtube_url.trim().length > 0
+							? rawLesson.youtube_url
+							: typeof rawLesson.embedUrl === 'string' && rawLesson.embedUrl.trim().length > 0
+								? rawLesson.embedUrl
+								: typeof rawLesson.embed_url === 'string' && rawLesson.embed_url.trim().length > 0
+									? rawLesson.embed_url
+									: typeof rawLesson.audioUrl === 'string' && rawLesson.audioUrl.trim().length > 0
+										? rawLesson.audioUrl
+										: typeof rawLesson.audio_url === 'string' && rawLesson.audio_url.trim().length > 0
+											? rawLesson.audio_url
+											: ''
+
 	return {
 		id: lesson.id || `lesson-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
 		title: lesson.title || 'Bài học chưa có tiêu đề',
 		duration: lesson.duration || '00:00',
-		videoId: lesson.videoId || '',
+		videoId: resolvedVideoId,
 		description: lesson.description || '',
 		videoScript: lesson.videoScript ?? [],
 		keyPhrases: lesson.keyPhrases ?? [],

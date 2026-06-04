@@ -3,7 +3,7 @@ import type { Course, User } from './domain/index.ts'
 import { COURSES, createCourse, fetchMe, initializeDomainData } from './domain/index.ts'
 import { buildPath, parsePath, type Route } from './routes/appRoutes.ts'
 import { inferRoleFromEmail } from './utils/auth.ts'
-import { login as loginApi } from './services/authService.ts'
+import { login as loginApi, logout as logoutApi } from './services/authService.ts'
 import HomePage from './pages/HomePage.tsx'
 import AuthPage from './pages/AuthPage.tsx'
 import CourseDetailPage from './pages/CourseDetailPage.tsx'
@@ -23,17 +23,6 @@ import AdminDashboard from './pages/admin/Dashboard.tsx'
 import AdminUserManage from './pages/admin/UserManage.tsx'
 import AdminCourseManage from './pages/admin/CourseManage.tsx'
 import AdminLayout from './pages/admin/AdminLayout.tsx'
-
-function isLessonAccessible(courseId: string, lessonId: string, user: User | null) {
-  const course = COURSES.find((item) => item.id === courseId)
-  const lesson = course?.lessons.find((item) => item.id === lessonId)
-
-  if (!lesson) {
-    return false
-  }
-
-  return lesson.isFree || Boolean(user)
-}
 
 function defaultRouteByRole(role: User['role']): Route {
   if (role === 'student') {
@@ -140,6 +129,23 @@ function App() {
 
     const bootstrap = async () => {
       await initializeDomainData()
+
+      const persistedToken = localStorage.getItem('accessToken')
+      if (persistedToken) {
+        try {
+          const apiUser = await fetchMe()
+          if (mounted) {
+            setUser(resolveAuthUser(apiUser, ''))
+          }
+        } catch {
+          // Invalid/expired token: clear it to avoid repeated failing requests.
+          logoutApi()
+          if (mounted) {
+            setUser(null)
+          }
+        }
+      }
+
       if (mounted) {
         setIsBootstrapped(true)
       }
@@ -168,10 +174,6 @@ function App() {
 
   const effectiveRoute = useMemo<Route>(() => {
     if (route.view === 'course' && !user) {
-      return { view: 'auth' }
-    }
-
-    if (route.view === 'lesson' && !isLessonAccessible(route.courseId, route.lessonId, user)) {
       return { view: 'auth' }
     }
 
@@ -204,6 +206,7 @@ function App() {
   }
 
   const handleLogout = () => {
+    logoutApi()
     setUser(null)
     setRedirectAfterAuth(null)
     navigate({ view: 'home' })
@@ -221,7 +224,7 @@ function App() {
   const goToLesson = (courseId: string, lessonId: string) => {
     const course = COURSES.find(c => c.id === courseId)
     const lesson = course?.lessons.find(l => l.id === lessonId)
-    if (!lesson?.isFree && !user) {
+    if (!user && lesson && !lesson.isFree) {
       setRedirectAfterAuth({ view: 'lesson', courseId, lessonId })
       navigate({ view: 'auth' })
       return

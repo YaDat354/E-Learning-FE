@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { COURSES, ROLE_LABELS, fetchLessonComments } from '../domain/index.ts'
-import type { Comment, User } from '../domain/index.ts'
+import { ROLE_LABELS, fetchLessonComments } from '../domain/index.ts'
+import type { Comment, Course, User } from '../domain/index.ts'
+import { fetchCourseDetail } from '../services/courseService.ts'
 import VideoPlayer from '../components/course/VideoPlayer.tsx'
 import QuizPanel from '../components/course/QuizPanel.tsx'
 import AssignmentPanel from '../components/course/AssignmentPanel.tsx'
@@ -20,10 +21,40 @@ type LessonPageProps = {
 
 function LessonPage({ courseId, lessonId, user, onBack, onGoToLesson, onGoAuth }: LessonPageProps) {
   const [activeTab, setActiveTab] = useState<Tab>('overview')
+  const [course, setCourse] = useState<Course | null>(null)
+  const [isCourseLoading, setIsCourseLoading] = useState(true)
   const [comments, setComments] = useState<Comment[]>([])
 
-  const course = COURSES.find((c) => c.id === courseId)
   const lesson = course?.lessons.find((l) => l.id === lessonId)
+
+  useEffect(() => {
+    let mounted = true
+
+    const loadCourse = async () => {
+      setIsCourseLoading(true)
+      try {
+        const nextCourse = await fetchCourseDetail(courseId)
+        if (mounted) {
+          setCourse(nextCourse)
+        }
+      } catch (error) {
+        console.error('load lesson course detail failed', error)
+        if (mounted) {
+          setCourse(null)
+        }
+      } finally {
+        if (mounted) {
+          setIsCourseLoading(false)
+        }
+      }
+    }
+
+    void loadCourse()
+
+    return () => {
+      mounted = false
+    }
+  }, [courseId])
 
   useEffect(() => {
     let mounted = true
@@ -48,6 +79,16 @@ function LessonPage({ courseId, lessonId, user, onBack, onGoToLesson, onGoAuth }
       mounted = false
     }
   }, [lessonId])
+
+  useEffect(() => {
+    if (!isCourseLoading && lesson && !lesson.isFree && !user) {
+      onGoAuth()
+    }
+  }, [isCourseLoading, lesson, onGoAuth, user])
+
+  if (isCourseLoading) {
+    return <div style={{ padding: 24 }}>Đang tải bài học...</div>
+  }
 
   if (!course || !lesson) return null
 
@@ -82,6 +123,7 @@ function LessonPage({ courseId, lessonId, user, onBack, onGoToLesson, onGoAuth }
           <VideoPlayer
             title={lesson.title}
             duration={lesson.duration}
+            videoId={lesson.videoId}
             script={lesson.videoScript}
             keyPhrases={lesson.keyPhrases}
           />
