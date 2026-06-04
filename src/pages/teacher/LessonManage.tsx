@@ -1,6 +1,6 @@
 import { Fragment, useMemo, useState } from 'react'
-import { COURSES } from '../../data/mockData.ts'
-import type { Lesson } from '../../data/mockData.ts'
+import { COURSES } from '../../domain/index.ts'
+import type { Lesson } from '../../domain/index.ts'
 import VideoPlayer from '../../components/course/VideoPlayer.tsx'
 import QuizPanel from '../../components/course/QuizPanel.tsx'
 import './LessonManage.css'

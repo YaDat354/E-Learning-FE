@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { COURSES } from '../../data/mockData.ts'
+import { COURSES } from '../../domain/index.ts'
 import './CourseList.css'
 
 type CourseListProps = {
@@ -14,7 +14,8 @@ function CourseList({ onOpenCourse, onBackToDashboard, onLogout }: CourseListPro
 
 	const courses = useMemo(() => {
 		return COURSES.filter((course) => {
-			const matchesQuery = course.title.toLowerCase().includes(query.toLowerCase())
+			const title = typeof course.title === 'string' ? course.title : ''
+			const matchesQuery = title.toLowerCase().includes(query.toLowerCase())
 			const matchesLevel = level === 'all' ? true : course.level === level
 			return matchesQuery && matchesLevel
 		})
@@ -54,12 +55,17 @@ function CourseList({ onOpenCourse, onBackToDashboard, onLogout }: CourseListPro
 				</div>
 
 				<div className="student-list">
+					{courses.length === 0 && (
+						<div className="student-list-item">
+							<div className="student-list-meta">Chưa có khóa học phù hợp hoặc dữ liệu khóa học chưa sẵn sàng.</div>
+						</div>
+					)}
 					{courses.map((course) => (
 						<div className="student-list-item" key={course.id}>
 							<div>
-								<div className="student-list-title">{course.title}</div>
+								<div className="student-list-title">{course.title || 'Khóa học chưa có tiêu đề'}</div>
 								<div className="student-list-meta">
-									{course.level} · {course.duration} · {course.studentCount.toLocaleString()} học viên
+									{course.level || 'Chưa phân cấp'} · {course.duration || 'Đang cập nhật'} · {(course.studentCount ?? 0).toLocaleString()} học viên
 								</div>
 							</div>
 							<button className="student-btn" onClick={() => onOpenCourse(course.id)}>Xem chi tiết</button>

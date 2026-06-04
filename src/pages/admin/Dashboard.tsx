@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { COURSES } from '../../data/mockData.ts'
+import { COURSES } from '../../domain/index.ts'
 import './Dashboard.css'
 
 type Props = {

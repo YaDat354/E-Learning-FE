@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { Comment, User, UserRole } from '../../data/mockData.ts'
+import type { Comment, User, UserRole } from '../../domain/index.ts'
 
 type DiscussionPanelProps = {
   user: User | null

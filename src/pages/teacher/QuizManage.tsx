@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
-import { COURSES } from '../../data/mockData.ts'
-import type { Quiz } from '../../data/mockData.ts'
+﻿import { useMemo, useState } from 'react'
+import { COURSES } from '../../domain/index.ts'
+import type { Quiz } from '../../domain/index.ts'
 import './QuizManage.css'
 
 type Props = {
@@ -72,12 +72,6 @@ function QuizManage({ onBackToDashboard }: Props) {
 	)
 
 	const selectableLessons = useMemo(() => selectedCourse?.lessons ?? [], [selectedCourse])
-
-	useEffect(() => {
-		if (!selectableLessons.some((lesson) => lesson.id === selectedLessonId)) {
-			setSelectedLessonId(selectableLessons[0]?.id ?? '')
-		}
-	}, [selectableLessons, selectedLessonId])
 
 	const toggleExpand = (index: number) => {
 		setExpandedIndex(expandedIndex === index ? null : index)
@@ -168,7 +162,12 @@ function QuizManage({ onBackToDashboard }: Props) {
 						<select
 							className="teacher-select"
 							value={selectedCourseId}
-							onChange={(e) => setSelectedCourseId(e.target.value)}
+							onChange={(e) => {
+								const nextCourseId = e.target.value
+								const nextCourse = COURSES.find((course) => course.id === nextCourseId)
+								setSelectedCourseId(nextCourseId)
+								setSelectedLessonId(nextCourse?.lessons[0]?.id ?? '')
+							}}
 						>
 							{COURSES.map((course) => (
 								<option key={course.id} value={course.id}>

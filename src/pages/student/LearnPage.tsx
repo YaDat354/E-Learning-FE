@@ -1,5 +1,5 @@
 import LessonPage from '../LessonPage.tsx'
-import type { User } from '../../data/mockData.ts'
+import type { User } from '../../domain/index.ts'
 import './LearnPage.css'
 
 type StudentLearnPageProps = {

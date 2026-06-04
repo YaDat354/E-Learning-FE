@@ -1,0 +1,70 @@
+export type UserRole = 'student' | 'teacher' | 'admin'
+
+export type User = { name: string; email: string; role: UserRole }
+
+export const ROLE_LABELS: Record<UserRole, string> = {
+  student: 'Học viên',
+  teacher: 'Giảng viên',
+  admin: 'Quản trị viên',
+}
+
+export type Course = {
+  id: string
+  title: string
+  description: string
+  instructor: string
+  instructorAvatar: string
+  category: string
+  categoryColor: string
+  level: 'Cơ bản' | 'Trung cấp' | 'Nâng cao'
+  rating: number
+  reviewCount: number
+  studentCount: number
+  duration: string
+  price: number
+  originalPrice: number
+  tags: string[]
+  lessons: Lesson[]
+}
+
+export type Lesson = {
+  id: string
+  title: string
+  duration: string
+  videoId: string
+  description: string
+  videoScript: string[]
+  keyPhrases: string[]
+  isFree: boolean
+  quiz: Quiz | null
+  resources: Resource[]
+}
+
+export type Quiz = {
+  title: string
+  questions: Question[]
+}
+
+export type Question = {
+  id: string
+  text: string
+  options: string[]
+  correctIndex: number
+  explanation: string
+}
+
+export type Resource = {
+  title: string
+  type: 'docs' | 'github' | 'pdf'
+}
+
+export type Comment = {
+  id: string
+  author: string
+  initials: string
+  avatarColor: string
+  text: string
+  time: string
+  likes: number
+  replies: Comment[]
+}

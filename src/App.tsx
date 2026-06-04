@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
-import type { Course, User } from './data/mockData.ts'
-import { COURSES } from './data/mockData.ts'
+﻿import { useEffect, useMemo, useState } from 'react'
+import type { Course, User } from './domain/index.ts'
+import { COURSES, createCourse, fetchMe, initializeDomainData } from './domain/index.ts'
 import { buildPath, parsePath, type Route } from './routes/appRoutes.ts'
 import { inferRoleFromEmail } from './utils/auth.ts'
+import { login as loginApi } from './services/authService.ts'
 import HomePage from './pages/HomePage.tsx'
 import AuthPage from './pages/AuthPage.tsx'
 import CourseDetailPage from './pages/CourseDetailPage.tsx'
@@ -46,10 +47,83 @@ function defaultRouteByRole(role: User['role']): Route {
   return { view: 'admin-dashboard' }
 }
 
+function normalizeRole(value: unknown): User['role'] | null {
+  if (typeof value !== 'string') {
+    return null
+  }
+
+  const normalized = value.trim().toLowerCase()
+
+  if (!normalized) {
+    return null
+  }
+
+  if (normalized === 'admin' || normalized === 'role_admin') {
+    return 'admin'
+  }
+
+  if (normalized === 'teacher' || normalized === 'instructor' || normalized === 'role_teacher' || normalized === 'role_instructor') {
+    return 'teacher'
+  }
+
+  if (normalized === 'student' || normalized === 'learner' || normalized === 'role_student' || normalized === 'role_learner') {
+    return 'student'
+  }
+
+  return null
+}
+
+function resolveAuthUser(payload: unknown, fallbackEmail: string): User {
+  const source = (payload && typeof payload === 'object') ? payload as Record<string, unknown> : {}
+  const nestedData = (source.data && typeof source.data === 'object') ? source.data as Record<string, unknown> : {}
+  const nestedUser = (source.user && typeof source.user === 'object')
+    ? source.user as Record<string, unknown>
+    : (nestedData.user && typeof nestedData.user === 'object')
+      ? nestedData.user as Record<string, unknown>
+      : {}
+
+  const name = typeof nestedUser.name === 'string' && nestedUser.name.trim().length > 0
+    ? nestedUser.name
+    : typeof nestedUser.fullName === 'string' && nestedUser.fullName.trim().length > 0
+      ? nestedUser.fullName
+      : typeof source.name === 'string' && source.name.trim().length > 0
+        ? source.name
+        : typeof source.fullName === 'string' && source.fullName.trim().length > 0
+          ? source.fullName
+          : typeof nestedData.name === 'string' && nestedData.name.trim().length > 0
+            ? nestedData.name
+            : typeof nestedData.fullName === 'string' && nestedData.fullName.trim().length > 0
+              ? nestedData.fullName
+      : fallbackEmail.split('@')[0] || 'Học viên'
+
+  const email = typeof nestedUser.email === 'string' && nestedUser.email.trim().length > 0
+    ? nestedUser.email
+    : typeof source.email === 'string' && source.email.trim().length > 0
+      ? source.email
+      : typeof nestedData.email === 'string' && nestedData.email.trim().length > 0
+        ? nestedData.email
+        : fallbackEmail
+
+  const role =
+    normalizeRole(nestedUser.role) ??
+    normalizeRole(nestedUser.userRole) ??
+    normalizeRole(nestedUser.roleName) ??
+    normalizeRole(source.role) ??
+    normalizeRole(source.userRole) ??
+    normalizeRole(source.roleName) ??
+    normalizeRole(nestedData.role) ??
+    normalizeRole(nestedData.userRole) ??
+    normalizeRole(nestedData.roleName) ??
+    inferRoleFromEmail(email)
+
+  return { name, email, role }
+}
+
 function App() {
   const [route, setRoute] = useState<Route>(() => parsePath(window.location.pathname))
   const [user, setUser] = useState<User | null>(null)
   const [redirectAfterAuth, setRedirectAfterAuth] = useState<Route | null>(null)
+  const [isBootstrapped, setIsBootstrapped] = useState(false)
 
   const navigate = (nextRoute: Route, replace = false) => {
     const nextPath = buildPath(nextRoute)
@@ -62,6 +136,17 @@ function App() {
   }
 
   useEffect(() => {
+    let mounted = true
+
+    const bootstrap = async () => {
+      await initializeDomainData()
+      if (mounted) {
+        setIsBootstrapped(true)
+      }
+    }
+
+    void bootstrap()
+
     const normalizedRoute = parsePath(window.location.pathname)
     const normalizedPath = buildPath(normalizedRoute)
 
@@ -76,11 +161,16 @@ function App() {
     window.addEventListener('popstate', handlePopState)
 
     return () => {
+      mounted = false
       window.removeEventListener('popstate', handlePopState)
     }
   }, [])
 
   const effectiveRoute = useMemo<Route>(() => {
+    if (route.view === 'course' && !user) {
+      return { view: 'auth' }
+    }
+
     if (route.view === 'lesson' && !isLessonAccessible(route.courseId, route.lessonId, user)) {
       return { view: 'auth' }
     }
@@ -88,11 +178,27 @@ function App() {
     return route
   }, [route, user])
 
-  const handleLogin = (name: string, email: string) => {
-    const role = inferRoleFromEmail(email)
-    setUser({ name, email, role })
-    const defaultRoute = defaultRouteByRole(role)
-    const nextRoute = redirectAfterAuth ?? (route.view === 'lesson' ? route : defaultRoute)
+  const handleLogin = async (email: string, password: string) => {
+    const normalizedEmail = email.trim().toLowerCase()
+
+    if (!normalizedEmail || !password) {
+      throw new Error('missing credentials')
+    }
+
+    const authData = await loginApi(normalizedEmail, password)
+
+    let apiUser: unknown = null
+    try {
+      apiUser = await fetchMe()
+    } catch {
+      apiUser = null
+    }
+
+    const authUser = resolveAuthUser(apiUser ?? authData, normalizedEmail)
+
+    setUser(authUser)
+    const defaultRoute = defaultRouteByRole(authUser.role)
+    const nextRoute = redirectAfterAuth ?? ((route.view === 'lesson' || route.view === 'course') ? route : defaultRoute)
     setRedirectAfterAuth(null)
     navigate(nextRoute, true)
   }
@@ -103,9 +209,13 @@ function App() {
     navigate({ view: 'home' })
   }
 
-  const handleTeacherCourseCreated = (course: Course) => {
-    // Local FE uses mock data as source of truth; push new course so next views can read it.
-    COURSES.unshift(course)
+  const handleTeacherCourseCreated = async (course: Course) => {
+    try {
+      await createCourse(course)
+    } catch (error) {
+      console.error('create course failed', error)
+      alert('Không thể tạo khóa học. Vui lòng kiểm tra backend.')
+    }
   }
 
   const goToLesson = (courseId: string, lessonId: string) => {
@@ -119,6 +229,16 @@ function App() {
     navigate({ view: 'lesson', courseId, lessonId })
   }
 
+  const goToCourse = (courseId: string) => {
+    if (!user) {
+      setRedirectAfterAuth({ view: 'course', courseId })
+      navigate({ view: 'auth' })
+      return
+    }
+
+    navigate({ view: 'course', courseId })
+  }
+
   const goToAuth = () => navigate({ view: 'auth' })
   const goToHome = () => {
     if (user) {
@@ -127,6 +247,10 @@ function App() {
     }
 
     navigate({ view: 'home' })
+  }
+
+  if (!isBootstrapped) {
+    return <div style={{ padding: 24 }}>Đang kết nối backend...</div>
   }
 
   if (effectiveRoute.view === 'auth') {
@@ -138,7 +262,7 @@ function App() {
       return (
         <StudentDashboard
           user={user}
-          onOpenCourse={(courseId) => navigate({ view: 'course', courseId })}
+          onOpenCourse={goToCourse}
           onOpenLesson={goToLesson}
           onOpenCourseList={() => navigate({ view: 'student-courses' })}
           onOpenProfile={() => navigate({ view: 'student-profile' })}
@@ -184,7 +308,7 @@ function App() {
       <HomePage
         user={user}
         onGoAuth={goToAuth}
-        onGoCourse={(courseId) => navigate({ view: 'course', courseId })}
+        onGoCourse={goToCourse}
         onLogout={handleLogout}
       />
     )
@@ -198,7 +322,7 @@ function App() {
     return (
       <StudentDashboard
         user={user}
-        onOpenCourse={(courseId) => navigate({ view: 'course', courseId })}
+        onOpenCourse={goToCourse}
         onOpenLesson={goToLesson}
         onOpenCourseList={() => navigate({ view: 'student-courses' })}
         onOpenProfile={() => navigate({ view: 'student-profile' })}
@@ -214,7 +338,7 @@ function App() {
 
     return (
       <StudentCourseList
-        onOpenCourse={(courseId) => navigate({ view: 'course', courseId })}
+        onOpenCourse={goToCourse}
         onBackToDashboard={() => navigate({ view: 'student-dashboard' })}
         onLogout={handleLogout}
       />

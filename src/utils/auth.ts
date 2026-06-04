@@ -1,4 +1,4 @@
-import type { User } from '../data/mockData.ts'
+﻿import type { User } from '../domain/index.ts'
 
 export function inferRoleFromEmail(email: string): User['role'] {
   const normalizedEmail = email.toLowerCase()

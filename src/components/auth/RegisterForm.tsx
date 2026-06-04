@@ -3,16 +3,16 @@ import "./RegisterForm.css"
 
 type RegisterFormProps = {
   onSwitchToLogin: () => void
-  onLogin: (name: string, email: string) => void
 }
 
-function RegisterForm({ onSwitchToLogin, onLogin }: RegisterFormProps) {
+function RegisterForm({ onSwitchToLogin }: RegisterFormProps) {
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    onLogin(name || "Học viên", email || "user@example.com")
+    alert('Đăng ký chưa được bật ở frontend này. Vui lòng đăng nhập bằng tài khoản đã có trên backend.')
+    onSwitchToLogin()
   }
 
   return (

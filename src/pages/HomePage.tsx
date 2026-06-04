@@ -6,8 +6,8 @@ import {
   CheckCircle2, Play, Lock,
   Trophy, Zap, BookOpen, BookMarked,
 } from 'lucide-react'
-import { COURSES, ROLE_LABELS } from '../data/mockData.ts'
-import type { User } from '../data/mockData.ts'
+import { COURSES, ROLE_LABELS } from '../domain/index.ts'
+import type { User } from '../domain/index.ts'
 import CourseCard from '../components/ui/CourseCard.tsx'
 import SectionHeader from '../components/ui/SectionHeader.tsx'
 import '../styles/home.css'

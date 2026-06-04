@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { Lesson } from '../../data/mockData.ts'
+import type { Lesson } from '../../domain/index.ts'
 
 type QuizPanelProps = {
   quiz: NonNullable<Lesson['quiz']>

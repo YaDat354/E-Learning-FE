@@ -1,5 +1,5 @@
-import { COURSES, ROLE_LABELS } from '../../data/mockData.ts'
-import type { User } from '../../data/mockData.ts'
+import { COURSES, ROLE_LABELS } from '../../domain/index.ts'
+import type { User } from '../../domain/index.ts'
 import './Dashboard.css'
 
 type DashboardProps = {
@@ -20,6 +20,7 @@ function Dashboard({ user, onOpenCourse, onOpenLesson, onOpenCourseList, onOpenP
 		courseTitle: course.title,
 		lesson: course.lessons[0],
 	})).filter((item) => Boolean(item.lesson))
+	const firstCourseId = COURSES[0]?.id ?? null
 
 	return (
 		<section className="student-page">
@@ -32,7 +33,13 @@ function Dashboard({ user, onOpenCourse, onOpenLesson, onOpenCourseList, onOpenP
 					<div className="student-toolbar">
 						<button className="student-btn ghost" onClick={onOpenCourseList}>Danh sách khóa học</button>
 						<button className="student-btn ghost" onClick={onOpenProfile}>Hồ sơ</button>
-						<button className="student-btn" onClick={() => onOpenCourse(COURSES[0].id)}>Tiếp tục học</button>
+						<button
+							className="student-btn"
+							onClick={() => firstCourseId && onOpenCourse(firstCourseId)}
+							disabled={!firstCourseId}
+						>
+							Tiếp tục học
+						</button>
 						<button className="student-btn danger" onClick={onLogout}>Đăng xuất</button>
 					</div>
 				</header>
@@ -55,6 +62,11 @@ function Dashboard({ user, onOpenCourse, onOpenLesson, onOpenCourseList, onOpenP
 				<section className="student-panel">
 					<h3>Gợi ý học tiếp</h3>
 					<div className="student-list">
+						{nextLessons.length === 0 && (
+							<div className="student-list-item">
+								<div className="student-list-meta">Chưa có dữ liệu khóa học từ backend.</div>
+							</div>
+						)}
 						{nextLessons.map((item) => (
 							<div className="student-list-item" key={`${item.courseId}-${item.lesson.id}`}>
 								<div>

@@ -1,4 +1,4 @@
 export type AuthPageProps = {
-  onLogin: (name: string, email: string) => void
+  onLogin: (email: string, password: string) => Promise<void>
   onBack: () => void
 }

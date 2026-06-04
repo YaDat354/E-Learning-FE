@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { Course } from '../../data/mockData.ts'
+import type { Course } from '../../domain/index.ts'
 import '../admin/Dashboard.css'
 
 type Props = {

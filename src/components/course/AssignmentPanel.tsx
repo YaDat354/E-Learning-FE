@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { UserRole } from '../../data/mockData.ts'
+import type { UserRole } from '../../domain/index.ts'
 
 type AssignmentPanelProps = {
   lessonTitle: string

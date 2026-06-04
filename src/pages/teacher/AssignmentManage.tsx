@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { COURSES } from '../../data/mockData.ts'
+import { COURSES } from '../../domain/index.ts'
 import './AssignmentManage.css'
 
 type Props = {

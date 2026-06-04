@@ -3,16 +3,32 @@ import "./LoginForm.css"
 
 type LoginFormProps = {
   onSwitchToRegister: () => void
-  onLogin: (name: string, email: string) => void
+  onLogin: (email: string, password: string) => Promise<void>
 }
 
 function LoginForm({ onSwitchToRegister, onLogin }: LoginFormProps) {
   const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState("")
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    const name = email.split("@")[0] || "Học viên"
-    onLogin(name, email || "user@example.com")
+    if (!email || !password) {
+      setError("Vui lòng nhập email và mật khẩu")
+      return
+    }
+
+    setError("")
+    setIsSubmitting(true)
+
+    try {
+      await onLogin(email, password)
+    } catch {
+      setError("Đăng nhập thất bại. Vui lòng kiểm tra tài khoản hoặc mật khẩu.")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -32,9 +48,14 @@ function LoginForm({ onSwitchToRegister, onLogin }: LoginFormProps) {
         type="password"
         className="auth-input"
         placeholder="Nhập mật khẩu"
+        value={password}
+        onChange={e => setPassword(e.target.value)}
       />
+      {error && <p className="auth-inline-note" style={{ color: '#dc2626', marginTop: 8 }}>{error}</p>}
       <button type="button" className="auth-forgot-link">Quên mật khẩu?</button>
-      <button type="submit" className="auth-submit-button">Đăng nhập</button>
+      <button type="submit" className="auth-submit-button" disabled={isSubmitting}>
+        {isSubmitting ? "Đang đăng nhập..." : "Đăng nhập"}
+      </button>
       <p className="auth-inline-note">
         {"Bạn chưa có tài khoản? "}
         <button type="button" className="auth-inline-link" onClick={onSwitchToRegister}>

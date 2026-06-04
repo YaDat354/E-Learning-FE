@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Edit2, Trash2 } from 'lucide-react'
-import { COURSES, ROLE_LABELS } from '../../data/mockData.ts'
-import type { User } from '../../data/mockData.ts'
+import { COURSES, ROLE_LABELS } from '../../domain/index.ts'
+import type { User } from '../../domain/index.ts'
 import './UserManage.css'
 
 type Props = {

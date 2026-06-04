@@ -1,5 +1,7 @@
-import { COURSES, ROLE_LABELS } from '../data/mockData.ts'
-import type { User } from '../data/mockData.ts'
+import { useEffect, useState } from 'react'
+import { ROLE_LABELS } from '../domain/index.ts'
+import type { Course, User } from '../domain/index.ts'
+import { fetchCourseDetail } from '../services/courseService.ts'
 import StarRating from '../components/ui/StarRating.tsx'
 import '../styles/course.css'
 
@@ -47,10 +49,52 @@ const WHAT_YOU_LEARN: Record<string, string[]> = {
 }
 
 function CourseDetailPage({ courseId, user, onGoAuth, onBack, onGoToLesson }: Props) {
-  const course = COURSES.find(c => c.id === courseId)
-  if (!course) return null
+  const [course, setCourse] = useState<Course | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState('')
 
-  const discount = Math.round((1 - course.price / course.originalPrice) * 100)
+  useEffect(() => {
+    let mounted = true
+
+    const loadCourse = async () => {
+      setIsLoading(true)
+      setError('')
+
+      try {
+        const next = await fetchCourseDetail(courseId)
+        if (mounted) {
+          setCourse(next)
+        }
+      } catch (loadError) {
+        console.error('load course detail failed', loadError)
+        if (mounted) {
+          setError('Không thể tải chi tiết khóa học từ backend.')
+          setCourse(null)
+        }
+      } finally {
+        if (mounted) {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    void loadCourse()
+
+    return () => {
+      mounted = false
+    }
+  }, [courseId])
+
+  if (isLoading) {
+    return <div style={{ padding: 24 }}>Đang tải chi tiết khóa học...</div>
+  }
+
+  if (!course) {
+    return <div style={{ padding: 24 }}>{error || 'Không tìm thấy khóa học.'}</div>
+  }
+
+  const hasPricing = course.price > 0 && course.originalPrice > 0
+  const discount = hasPricing ? Math.round((1 - course.price / course.originalPrice) * 100) : 0
   const learningItems = WHAT_YOU_LEARN[course.id] ?? WHAT_YOU_LEARN['giao-tiep']
   const actionText = user?.role === 'teacher'
     ? 'Xem dưới góc nhìn giảng viên'
@@ -134,15 +178,19 @@ function CourseDetailPage({ courseId, user, onGoAuth, onBack, onGoToLesson }: Pr
 
           <div className="enroll-card">
             <div className="enroll-price-row">
-              <span className="enroll-price">{course.price.toLocaleString('vi-VN')}đ</span>
-              <span className="enroll-price-orig">{course.originalPrice.toLocaleString('vi-VN')}đ</span>
-              <span className="enroll-discount">-{discount}%</span>
+              <span className="enroll-price">
+                {hasPricing ? `${course.price.toLocaleString('vi-VN')}đ` : 'Đang cập nhật'}
+              </span>
+              <span className="enroll-price-orig">
+                {hasPricing ? `${course.originalPrice.toLocaleString('vi-VN')}đ` : ''}
+              </span>
+              {hasPricing && <span className="enroll-discount">-{discount}%</span>}
             </div>
             <button className="btn-enroll" onClick={handleEnroll}>
               {actionText}
             </button>
             <ul className="enroll-includes">
-              <li>{course.duration} video bai giang</li>
+              <li>{course.duration} video bài giảng</li>
               <li>{course.lessons.length} bài học theo lộ trình</li>
               <li>Quiz và bài tập thực hành sau bài học</li>
               <li>Chứng nhận hoàn thành khóa học</li>

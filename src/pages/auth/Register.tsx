@@ -6,14 +6,14 @@ type RegisterProps = AuthPageProps & {
   onSwitchToLogin: () => void
 }
 
-function Register({ onLogin, onBack, onSwitchToLogin }: RegisterProps) {
+function Register({ onBack, onSwitchToLogin }: RegisterProps) {
   return (
     <AuthShell
       title="Tạo tài khoản"
       subtitle="Tạo tài khoản để bắt đầu học và trải nghiệm bài học demo"
       onBack={onBack}
     >
-      <RegisterForm onSwitchToLogin={onSwitchToLogin} onLogin={onLogin} />
+      <RegisterForm onSwitchToLogin={onSwitchToLogin} />
     </AuthShell>
   )
 }

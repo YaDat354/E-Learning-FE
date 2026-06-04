@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
-import { COURSES } from '../../data/mockData.ts'
-import type { Course } from '../../data/mockData.ts'
+import { COURSES } from '../../domain/index.ts'
+import type { Course } from '../../domain/index.ts'
 import '../admin/Dashboard.css'
 
 type Props = {

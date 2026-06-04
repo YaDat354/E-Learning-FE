@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import type { Course } from '../../data/mockData.ts'
+import type { Course } from '../../domain/index.ts'
 import StarRating from './StarRating.tsx'
 
 type CourseCardProps = {
@@ -9,6 +9,8 @@ type CourseCardProps = {
 }
 
 function CourseCard({ course, icon, onOpen }: CourseCardProps) {
+  const hasPricing = course.price > 0 && course.originalPrice > 0
+
   return (
     <div className="course-card" onClick={() => onOpen(course.id)}>
       <div
@@ -48,8 +50,12 @@ function CourseCard({ course, icon, onOpen }: CourseCardProps) {
 
       <div className="course-card-footer">
         <div className="course-price">
-          <span className="price-current">{course.price.toLocaleString('vi-VN')}đ</span>
-          <span className="price-original">{course.originalPrice.toLocaleString('vi-VN')}đ</span>
+          <span className="price-current">
+            {hasPricing ? `${course.price.toLocaleString('vi-VN')}đ` : 'Đang cập nhật'}
+          </span>
+          <span className="price-original">
+            {hasPricing ? `${course.originalPrice.toLocaleString('vi-VN')}đ` : ''}
+          </span>
         </div>
         <button className="btn-card-view" type="button">Xem khóa học</button>
       </div>

@@ -6,7 +6,7 @@ import {
   LogOut,
   ShieldCheck,
 } from 'lucide-react'
-import type { User } from '../../data/mockData.ts'
+import type { User } from '../../domain/index.ts'
 import './AdminLayout.css'
 
 export type AdminActiveView = 'dashboard' | 'courses' | 'users'

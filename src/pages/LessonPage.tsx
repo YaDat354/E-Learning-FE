@@ -1,6 +1,6 @@
-import { useState } from 'react'
-import { COURSES, MOCK_COMMENTS, ROLE_LABELS } from '../data/mockData.ts'
-import type { User } from '../data/mockData.ts'
+import { useEffect, useState } from 'react'
+import { COURSES, ROLE_LABELS, fetchLessonComments } from '../domain/index.ts'
+import type { Comment, User } from '../domain/index.ts'
 import VideoPlayer from '../components/course/VideoPlayer.tsx'
 import QuizPanel from '../components/course/QuizPanel.tsx'
 import AssignmentPanel from '../components/course/AssignmentPanel.tsx'
@@ -20,9 +20,34 @@ type LessonPageProps = {
 
 function LessonPage({ courseId, lessonId, user, onBack, onGoToLesson, onGoAuth }: LessonPageProps) {
   const [activeTab, setActiveTab] = useState<Tab>('overview')
+  const [comments, setComments] = useState<Comment[]>([])
 
   const course = COURSES.find((c) => c.id === courseId)
   const lesson = course?.lessons.find((l) => l.id === lessonId)
+
+  useEffect(() => {
+    let mounted = true
+
+    const loadComments = async () => {
+      try {
+        const next = await fetchLessonComments(lessonId)
+        if (mounted) {
+          setComments(next)
+        }
+      } catch (error) {
+        console.error('load lesson comments failed', error)
+        if (mounted) {
+          setComments([])
+        }
+      }
+    }
+
+    void loadComments()
+
+    return () => {
+      mounted = false
+    }
+  }, [lessonId])
 
   if (!course || !lesson) return null
 
@@ -118,7 +143,7 @@ function LessonPage({ courseId, lessonId, user, onBack, onGoToLesson, onGoAuth }
               {activeTab === 'discussion' && (
                 <DiscussionPanel
                   user={user}
-                  commentsSeed={MOCK_COMMENTS}
+                  commentsSeed={comments}
                   onGoAuth={onGoAuth}
                   userRole={user?.role ?? null}
                 />
