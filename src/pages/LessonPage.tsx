@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react'
 import { ROLE_LABELS, fetchLessonComments } from '../domain/index.ts'
-import type { Comment, Course, User } from '../domain/index.ts'
-import { fetchCourseDetail } from '../services/courseService.ts'
+import type { Comment, Course, TranscriptLine, User } from '../domain/index.ts'
+import { fetchCourseDetail, fetchLessonDetail } from '../services/courseService.ts'
 import VideoPlayer from '../components/course/VideoPlayer.tsx'
 import QuizPanel from '../components/course/QuizPanel.tsx'
 import AssignmentPanel from '../components/course/AssignmentPanel.tsx'
 import DiscussionPanel from '../components/course/DiscussionPanel.tsx'
 import '../styles/course.css'
 
-type Tab = 'overview' | 'quiz' | 'assignment' | 'discussion'
+type Tab = 'overview' | 'transcript' | 'quiz' | 'submission' | 'discussion'
 
 type LessonPageProps = {
   courseId: string
@@ -34,8 +34,23 @@ function LessonPage({ courseId, lessonId, user, onBack, onGoToLesson, onGoAuth }
       setIsCourseLoading(true)
       try {
         const nextCourse = await fetchCourseDetail(courseId)
+        let nextLesson = null
+
+        try {
+          nextLesson = await fetchLessonDetail(courseId, lessonId)
+        } catch (lessonError) {
+          console.warn('load lesson detail failed', lessonError)
+        }
+
+        const mergedCourse = nextLesson
+          ? {
+              ...nextCourse,
+              lessons: nextCourse.lessons.map((item) => (String(item.id) === String(lessonId) || String(item.id) === String(nextLesson.id) ? nextLesson : item)),
+            }
+          : nextCourse
+
         if (mounted) {
-          setCourse(nextCourse)
+          setCourse(mergedCourse)
         }
       } catch (error) {
         console.error('load lesson course detail failed', error)
@@ -54,7 +69,7 @@ function LessonPage({ courseId, lessonId, user, onBack, onGoToLesson, onGoAuth }
     return () => {
       mounted = false
     }
-  }, [courseId])
+  }, [courseId, lessonId])
 
   useEffect(() => {
     let mounted = true
@@ -80,6 +95,28 @@ function LessonPage({ courseId, lessonId, user, onBack, onGoToLesson, onGoAuth }
     }
   }, [lessonId])
 
+  const renderSpeakerLine = (line: string, key: string) => {
+    const trimmed = line.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/\s+/g, ' ').trim()
+    const colonIndex = trimmed.indexOf(':')
+
+    if (colonIndex > 0 && colonIndex < 24) {
+      const speaker = trimmed.slice(0, colonIndex).trim()
+      const message = trimmed.slice(colonIndex + 1).trim()
+
+      return (
+        <p key={key} style={{ margin: '0 0 16px', fontSize: 18, lineHeight: 1.55 }}>
+          <strong>{speaker}:</strong> <span>{message}</span>
+        </p>
+      )
+    }
+
+    return (
+      <p key={key} style={{ margin: '0 0 16px', fontSize: 18, lineHeight: 1.55 }}>
+        {trimmed}
+      </p>
+    )
+  }
+
   useEffect(() => {
     if (!isCourseLoading && lesson && !lesson.isFree && !user) {
       onGoAuth()
@@ -94,8 +131,9 @@ function LessonPage({ courseId, lessonId, user, onBack, onGoToLesson, onGoAuth }
 
   const tabs: { id: Tab; label: string }[] = [
     { id: 'overview', label: 'Tổng quan' },
-    ...(lesson.quiz ? [{ id: 'quiz' as Tab, label: 'Quiz' }] : []),
-    { id: 'assignment', label: 'Bài tập' },
+    { id: 'transcript', label: 'Transcript' },
+    { id: 'quiz', label: 'Quiz' },
+    { id: 'submission', label: 'Bài nộp' },
     { id: 'discussion', label: 'Thảo luận' },
   ]
 
@@ -156,6 +194,7 @@ function LessonPage({ courseId, lessonId, user, onBack, onGoToLesson, onGoAuth }
               {activeTab === 'overview' && (
                 <div>
                   <p className="lesson-description">{lesson.description}</p>
+
                   {lesson.resources.length > 0 && (
                     <>
                       <h4 style={{ marginBottom: 10, fontSize: 15, fontWeight: 700 }}>
@@ -180,8 +219,35 @@ function LessonPage({ courseId, lessonId, user, onBack, onGoToLesson, onGoAuth }
                 </div>
               )}
 
-              {activeTab === 'quiz' && lesson.quiz && <QuizPanel quiz={lesson.quiz} />}
-              {activeTab === 'assignment' && <AssignmentPanel lessonTitle={lesson.title} userRole={user?.role ?? null} />}
+              {activeTab === 'transcript' && (
+                <div className="assignment-section">
+                  <h3>Transcript</h3>
+                  <div style={{ padding: '22px 18px 10px', background: '#eef1f4', borderRadius: 14 }}>
+                    {((lesson.transcript.length > 0 ? lesson.transcript : lesson.translations.map((item) => ({
+                      original: item.original,
+                      translated: item.translated,
+                      note: item.note,
+                    }))) as TranscriptLine[]).map((item, index) =>
+                      renderSpeakerLine(item.original || item.translated || item.note || `Line ${index + 1}`, `${lesson.id}-transcript-${index}`)
+                    )}
+                  </div>
+                </div>
+              )}
+              {activeTab === 'quiz' && (
+                <div className="assignment-section">
+                  <h3>Quiz</h3>
+                  {lesson.quiz ? (
+                    <div style={{ border: '1px solid #e5eaf1', borderRadius: 16, padding: 16, background: '#fafcff' }}>
+                      <QuizPanel quiz={lesson.quiz} />
+                    </div>
+                  ) : (
+                    <div style={{ padding: '14px 16px', border: '1px dashed #d6deea', borderRadius: 14, color: 'var(--muted)' }}>
+                      Lesson detail hiện chưa trả quiz hoặc quiz_id cho bài này, nên FE chưa thể gọi quiz detail tương ứng.
+                    </div>
+                  )}
+                </div>
+              )}
+              {activeTab === 'submission' && <AssignmentPanel lessonTitle={lesson.title} userRole={user?.role ?? null} />}
               {activeTab === 'discussion' && (
                 <DiscussionPanel
                   user={user}

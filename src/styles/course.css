@@ -415,20 +415,18 @@
 .lesson-page-layout {
   display: grid;
   grid-template-columns: 1fr 300px;
-  overflow: hidden;
-  height: calc(100vh - 53px);
+  min-height: calc(100vh - 53px);
 }
 
 /* Left column */
 .lesson-main {
-  overflow-y: auto;
+  min-height: 0;
 }
 
 /* Right column */
 .lesson-sidebar {
   background: #161b22;
   border-left: 1px solid #30363d;
-  overflow-y: auto;
   padding: 16px 0;
 }
 

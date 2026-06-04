@@ -45,7 +45,7 @@ function AssignmentPanel({ lessonTitle, userRole }: AssignmentPanelProps) {
 
   return (
     <div className="assignment-section">
-      <h3>Bài tập thực hành</h3>
+      <h3>Bài nộp</h3>
       <p>
         Viết một đoạn hội thoại ngắn hoặc đoạn trả lời áp dụng kiến thức trong bài <strong>{lessonTitle}</strong>.
         Bạn có thể giải thích cách dùng từ vựng, cấu trúc câu hoặc tình huống bạn sẽ sử dụng nội dung này.

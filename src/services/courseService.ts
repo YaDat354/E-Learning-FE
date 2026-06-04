@@ -1,5 +1,5 @@
 import api from '../lib/api.ts'
-import type { Comment, Course, Lesson, Quiz, User } from '../types/domain.ts'
+import type { Comment, Course, Lesson, LessonExercise, Quiz, TranscriptLine, TranslationLine, User } from '../types/domain.ts'
 
 export const COURSES: Course[] = []
 export const USERS: User[] = []
@@ -44,12 +44,6 @@ function extractObjectPayload<T>(payload: unknown): T {
 	const data = root.data
 
 	if (data && typeof data === 'object' && !Array.isArray(data)) {
-		const nested = asRecord(data)
-		const maybeUser = nested.user
-		if (maybeUser && typeof maybeUser === 'object' && !Array.isArray(maybeUser)) {
-			return maybeUser as T
-		}
-
 		return data as T
 	}
 
@@ -118,8 +112,322 @@ function buildInitialsFromName(name: string): string {
 	return initials || 'NA'
 }
 
+function stripHtmlText(value: string): string {
+	const withoutTags = value.replace(/<[^>]*>/g, ' ')
+	const withoutEntities = withoutTags
+		.replace(/&nbsp;/gi, ' ')
+		.replace(/&amp;/gi, '&')
+		.replace(/&lt;/gi, '<')
+		.replace(/&gt;/gi, '>')
+		.replace(/&quot;/gi, '"')
+		.replace(/&#39;/gi, "'")
+
+	return withoutEntities.replace(/\s+/g, ' ').trim()
+}
+
+function htmlToLines(value: string): string[] {
+	const withBreaks = value
+		.replace(/<\s*br\s*\/?\s*>/gi, '\n')
+		.replace(/<\/(p|div|li|h\d|tr)>/gi, '\n')
+		.replace(/<(li|tr|td|th)\b[^>]*>/gi, '')
+
+	return withBreaks
+		.split(/\n+/)
+		.map((line) => stripHtmlText(line))
+		.filter((line) => line.length > 0)
+}
+
+function readStringFromSources(sources: Array<Record<string, unknown>>, keys: string[]): string {
+	for (const source of sources) {
+		for (const key of keys) {
+			const value = source[key]
+			if (typeof value === 'string' && value.trim().length > 0) {
+				return value
+			}
+		}
+	}
+
+	return ''
+}
+
+function normalizeTranslationLine(value: Partial<TranslationLine> | string): TranslationLine {
+	if (typeof value === 'string') {
+		const cleaned = stripHtmlText(value)
+		return { original: cleaned, translated: cleaned }
+	}
+
+	const raw = asRecord(value)
+	return {
+		original: typeof raw.original === 'string' && raw.original.trim().length > 0 ? stripHtmlText(raw.original) : '',
+		translated: typeof raw.translated === 'string' && raw.translated.trim().length > 0 ? stripHtmlText(raw.translated) : typeof raw.vi === 'string' && raw.vi.trim().length > 0 ? stripHtmlText(raw.vi) : '',
+		note: typeof raw.note === 'string' && raw.note.trim().length > 0 ? stripHtmlText(raw.note) : undefined,
+	}
+}
+
+function normalizeLessonExercise(value: Partial<LessonExercise> | string): LessonExercise {
+	if (typeof value === 'string') {
+		return { prompt: stripHtmlText(value) }
+	}
+
+	const raw = asRecord(value)
+	return {
+		prompt: typeof raw.prompt === 'string' && raw.prompt.trim().length > 0 ? stripHtmlText(raw.prompt) : typeof raw.question === 'string' && raw.question.trim().length > 0 ? stripHtmlText(raw.question) : '',
+		hint: typeof raw.hint === 'string' && raw.hint.trim().length > 0 ? stripHtmlText(raw.hint) : undefined,
+		answer: typeof raw.answer === 'string' && raw.answer.trim().length > 0 ? stripHtmlText(raw.answer) : undefined,
+	}
+}
+
+function normalizeTranscriptLine(value: Partial<TranscriptLine> | string): TranscriptLine {
+	if (typeof value === 'string') {
+		return { original: stripHtmlText(value) }
+	}
+
+	const raw = asRecord(value)
+	return {
+		original: typeof raw.original === 'string' && raw.original.trim().length > 0 ? stripHtmlText(raw.original) : typeof raw.text === 'string' && raw.text.trim().length > 0 ? stripHtmlText(raw.text) : '',
+		translated: typeof raw.translated === 'string' && raw.translated.trim().length > 0 ? stripHtmlText(raw.translated) : typeof raw.vi === 'string' && raw.vi.trim().length > 0 ? stripHtmlText(raw.vi) : undefined,
+		note: typeof raw.note === 'string' && raw.note.trim().length > 0 ? stripHtmlText(raw.note) : undefined,
+	}
+}
+
+function readNumberFromSources(sources: Array<Record<string, unknown>>, keys: string[]): number | null {
+	for (const source of sources) {
+		for (const key of keys) {
+			const value = source[key]
+			if (typeof value === 'number' && Number.isFinite(value)) {
+				return value
+			}
+
+			if (typeof value === 'string' && value.trim().length > 0) {
+				const parsed = Number(value)
+				if (Number.isFinite(parsed)) {
+					return parsed
+				}
+			}
+		}
+	}
+
+	return null
+}
+
+function normalizeQuizOption(value: unknown): string {
+	if (typeof value === 'string') {
+		return stripHtmlText(value)
+	}
+
+	const raw = asRecord(value)
+	return stripHtmlText(
+		readStringFromSources([raw], ['text', 'label', 'content', 'value', 'option', 'answer'])
+	)
+}
+
+function normalizeQuizQuestion(value: unknown, index: number): Quiz['questions'][number] | null {
+	const raw = asRecord(value)
+	const text = readStringFromSources([raw], ['text', 'question', 'prompt', 'content', 'title', 'name'])
+	const optionSource = readArrayFromSources([raw], ['options', 'choices', 'answers', 'items'])
+	const orderedOptionSource = optionSource.slice().sort((left, right) => {
+		const leftOrder = readNumberFromSources([asRecord(left)], ['orderIndex', 'order_index']) ?? 0
+		const rightOrder = readNumberFromSources([asRecord(right)], ['orderIndex', 'order_index']) ?? 0
+		return leftOrder - rightOrder
+	})
+	const options = orderedOptionSource
+		.map((item) => normalizeQuizOption(item))
+		.filter((item) => item.length > 0)
+
+	if (!text || options.length === 0) {
+		return null
+	}
+
+	const correctAnswerText = readStringFromSources([raw], ['correctAnswer', 'answer', 'correctOption', 'correct'])
+	const numericCorrectIndex = readNumberFromSources([raw], ['correctIndex', 'correctOptionIndex', 'answerIndex', 'correct_answer_index'])
+	const answerFlagIndex = orderedOptionSource.findIndex((item) => {
+		const answer = asRecord(item)
+		return answer.is_correct === true || answer.isCorrect === true
+	})
+	const matchedAnswerIndex = correctAnswerText
+		? options.findIndex((option) => option === stripHtmlText(correctAnswerText))
+		: -1
+	const correctIndex = numericCorrectIndex !== null
+		? numericCorrectIndex
+		: answerFlagIndex >= 0
+			? answerFlagIndex
+		: matchedAnswerIndex >= 0
+			? matchedAnswerIndex
+			: 0
+
+	return {
+		id: readStringFromSources([raw], ['id', '_id', 'questionId', 'question_id']) || `question-${index + 1}`,
+		text: stripHtmlText(text),
+		options,
+		correctIndex: correctIndex >= 0 && correctIndex < options.length ? correctIndex : 0,
+		explanation: stripHtmlText(readStringFromSources([raw], ['explanation', 'explain', 'solution', 'note', 'description', 'content'])),
+	}
+}
+
+function normalizeQuiz(value: unknown, fallbackTitle: string): Quiz | null {
+	if (!value) {
+		return null
+	}
+
+	if (Array.isArray(value)) {
+		const looksLikeQuestionList = value.some((item) => {
+			const raw = asRecord(item)
+			return Boolean(readStringFromSources([raw], ['text', 'question', 'prompt', 'content']))
+				&& Array.isArray(raw.answers ?? raw.options ?? raw.choices)
+		})
+
+		if (looksLikeQuestionList) {
+			const questions = value
+				.map((item, index) => normalizeQuizQuestion(item, index))
+				.filter((item): item is Quiz['questions'][number] => Boolean(item))
+
+			return questions.length > 0
+				? {
+					title: `Quiz: ${fallbackTitle}`,
+					questions,
+				}
+				: null
+		}
+
+		for (const item of value) {
+			const normalized = normalizeQuiz(item, fallbackTitle)
+			if (normalized) {
+				return normalized
+			}
+		}
+
+		return null
+	}
+
+	const raw = asRecord(value)
+	const data = asRecord(raw.data)
+	const meta = asRecord(raw.meta)
+	const sources = [raw, data, meta]
+	const questionSource = readArrayFromSources(sources, ['questions', 'questionList', 'quizQuestions', 'items'])
+	const questions = questionSource
+		.map((item, index) => normalizeQuizQuestion(item, index))
+		.filter((item): item is Quiz['questions'][number] => Boolean(item))
+
+	if (questions.length === 0) {
+		return null
+	}
+
+	return {
+		title: readStringFromSources(sources, ['title', 'name', 'quizTitle', 'quiz_title']) || `Quiz: ${fallbackTitle}`,
+		questions,
+	}
+}
+
+function readLessonQuizId(value: unknown): string {
+	const raw = asRecord(value)
+	return readStringFromSources([raw], ['quizId', 'quiz_id'])
+}
+
+async function fetchQuizDetailById(courseId: string, quizId: string, fallbackTitle: string): Promise<Quiz | null> {
+	const endpoints = [
+		`/courses/${encodeURIComponent(courseId)}/quizzes/${encodeURIComponent(quizId)}`,
+		`/quizzes/${encodeURIComponent(quizId)}`,
+		`/quiz/${encodeURIComponent(quizId)}`,
+	]
+
+	for (const endpoint of endpoints) {
+		try {
+			const { data } = await api.get(endpoint)
+			const normalized = normalizeQuiz(data, fallbackTitle)
+			if (normalized) {
+				return normalized
+			}
+		} catch (error) {
+			console.warn('quiz detail request failed', endpoint, error)
+		}
+	}
+
+	return null
+}
+
+
+
+
+
+function readArrayFromSources(sources: Array<Record<string, unknown>>, keys: string[]): unknown[] {
+	for (const source of sources) {
+		for (const key of keys) {
+			const value = source[key]
+			if (Array.isArray(value)) {
+				return value
+			}
+		}
+	}
+
+	return []
+}
+
+function readValueFromSources(sources: Array<Record<string, unknown>>, keys: string[]): unknown {
+	for (const source of sources) {
+		for (const key of keys) {
+			const value = source[key]
+			if (value !== undefined && value !== null) {
+				return value
+			}
+		}
+	}
+
+	return null
+}
+
+function collectQuizCandidatesDeep(value: unknown, depth = 0, visited = new WeakSet<object>()): unknown[] {
+	if (!value || depth > 6) {
+		return []
+	}
+
+	if (Array.isArray(value)) {
+		const looksLikeQuestionList = value.some((item) => {
+			const raw = asRecord(item)
+			return Boolean(readStringFromSources([raw], ['text', 'question', 'prompt']))
+		})
+
+		if (looksLikeQuestionList) {
+			return [value]
+		}
+
+		return value.flatMap((item) => collectQuizCandidatesDeep(item, depth + 1, visited))
+	}
+
+	if (typeof value !== 'object') {
+		return []
+	}
+
+	if (visited.has(value as object)) {
+		return []
+	}
+	visited.add(value as object)
+
+	const raw = value as Record<string, unknown>
+	const candidates: unknown[] = []
+	const quizKeys = new Set(['quiz', 'quizs', 'quizzes', 'quizData', 'quizContent', 'exerciseQuiz', 'quizQuestions', 'questions'])
+
+	for (const [key, child] of Object.entries(raw)) {
+		if (quizKeys.has(key)) {
+			candidates.push(child)
+		}
+	}
+
+	for (const child of Object.values(raw)) {
+		candidates.push(...collectQuizCandidatesDeep(child, depth + 1, visited))
+	}
+
+	return candidates
+}
+
+
+
 function normalizeLesson(lesson: Partial<Lesson>): Lesson {
 	const rawLesson = asRecord(lesson)
+	const nestedContent = asRecord(rawLesson.content)
+	const lessonContent = asRecord(rawLesson.lessonContent)
+	const detailContent = asRecord(rawLesson.detail)
+	const practiceContent = asRecord(rawLesson.practiceBlock)
+	const stringSources = [nestedContent, lessonContent, detailContent, practiceContent, rawLesson]
 	const resolvedVideoId =
 		typeof lesson.videoId === 'string' && lesson.videoId.trim().length > 0
 			? lesson.videoId
@@ -140,19 +448,70 @@ function normalizeLesson(lesson: Partial<Lesson>): Lesson {
 										: typeof rawLesson.audio_url === 'string' && rawLesson.audio_url.trim().length > 0
 											? rawLesson.audio_url
 											: ''
+		const transcriptSource = readArrayFromSources([nestedContent, lessonContent, detailContent, practiceContent, rawLesson], [
+			'transcript',
+			'transcripts',
+			'transcriptLines',
+			'videoTranscript',
+			'transcriptTranslations',
+			'translations',
+			'translationLines',
+			'translation',
+		])
+		const translationSource = readArrayFromSources([nestedContent, lessonContent, detailContent, practiceContent, rawLesson], [
+			'translations',
+			'translationLines',
+			'translation',
+			'transcriptTranslations',
+			'transcript',
+			'transcripts',
+			'transcriptLines',
+			'videoTranscript',
+		])
+		const exerciseSource = readArrayFromSources([nestedContent, lessonContent, detailContent, practiceContent, rawLesson], [
+			'exercises',
+			'practice',
+			'practiceItems',
+			'assignments',
+			'task',
+			'tasks',
+			'taskItems',
+		])
+		const quizSource = readValueFromSources([nestedContent, lessonContent, detailContent, practiceContent, rawLesson], ['quiz', 'quizData', 'quizContent', 'exerciseQuiz', 'quizzes', 'quizs', 'quizQuestions', 'questions'])
+		const transcriptText = readStringFromSources(stringSources, ['transcript', 'transcripts', 'transcriptHtml', 'transcript_html', 'contentTranscript', 'dialogue', 'dialogueHtml'])
+		const transcriptFallback = transcriptSource.length === 0 && transcriptText
+			? htmlToLines(transcriptText)
+			: []
+		const deepQuizCandidates = collectQuizCandidatesDeep(rawLesson)
+		const resolvedQuiz = normalizeQuiz(quizSource, lesson.title || 'Bài học')
+			?? deepQuizCandidates
+				.map((candidate) => normalizeQuiz(candidate, lesson.title || 'Bài học'))
+				.find((candidate): candidate is Quiz => Boolean(candidate))
+			?? normalizeQuiz(lesson.quiz, lesson.title || 'Bài học')
 
-	return {
-		id: lesson.id || `lesson-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+	const finalLesson = {
+		id:
+			typeof lesson.id === 'string' && lesson.id.trim().length > 0
+				? lesson.id
+				: typeof lesson.id === 'number'
+					? String(lesson.id)
+					: `lesson-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
 		title: lesson.title || 'Bài học chưa có tiêu đề',
 		duration: lesson.duration || '00:00',
 		videoId: resolvedVideoId,
 		description: lesson.description || '',
 		videoScript: lesson.videoScript ?? [],
 		keyPhrases: lesson.keyPhrases ?? [],
+		transcript: (transcriptSource.length > 0 ? transcriptSource : transcriptFallback).map((item) => normalizeTranscriptLine(item as Partial<TranscriptLine> | string)).filter((item) => item.original),
+		task: [],
+		translations: translationSource.map((item) => normalizeTranslationLine(item as Partial<TranslationLine> | string)).filter((item) => item.original || item.translated),
+		exercises: exerciseSource.map((item) => normalizeLessonExercise(item as Partial<LessonExercise> | string)).filter((item) => item.prompt),
 		isFree: Boolean(lesson.isFree),
-		quiz: lesson.quiz ?? null,
+		quiz: resolvedQuiz,
 		resources: lesson.resources ?? [],
 	}
+
+	return finalLesson
 }
 
 function replaceArray<T>(target: T[], next: T[]) {
@@ -277,6 +636,44 @@ export async function fetchCourseDetail(courseId: string) {
 	return normalizeCourseDetail(data)
 }
 
+export async function fetchLessonDetail(courseId: string, lessonId: string) {
+	const endpoints = [
+		`/lessons/${encodeURIComponent(lessonId)}`,
+		`/lesson/${encodeURIComponent(lessonId)}`,
+		`/courses/${encodeURIComponent(courseId)}/lessons/${encodeURIComponent(lessonId)}`,
+		`/courses/${encodeURIComponent(courseId)}/lesson/${encodeURIComponent(lessonId)}`,
+		`/courses/${encodeURIComponent(courseId)}/lessons/detail/${encodeURIComponent(lessonId)}`,
+	]
+
+	for (const endpoint of endpoints) {
+		try {
+			const { data } = await api.get(endpoint)
+			const extracted = extractObjectPayload<Partial<Lesson>>(data)
+			const normalizedLesson = normalizeLesson(extracted)
+			if (normalizedLesson.quiz) {
+				return normalizedLesson
+			}
+
+			const quizId = readLessonQuizId(extracted)
+			if (!quizId) {
+				return normalizedLesson
+			}
+
+			const fetchedQuiz = await fetchQuizDetailById(courseId, quizId, normalizedLesson.title)
+			return fetchedQuiz
+				? {
+					...normalizedLesson,
+					quiz: fetchedQuiz,
+				}
+				: normalizedLesson
+		} catch (error) {
+			console.warn('lesson detail request failed', endpoint, error)
+		}
+	}
+
+	throw new Error(`lesson detail not found for ${lessonId}`)
+}
+
 export async function fetchUsers() {
 	const { data } = await api.get('/users/students')
 	const rows = extractArrayPayload<User>(data)
@@ -348,16 +745,17 @@ export async function deleteLesson(lessonId: string) {
 
 export async function upsertLessonQuiz(lessonId: string, payload: Quiz) {
 	const { data } = await api.put<Quiz>(`/lessons/${encodeURIComponent(lessonId)}/quiz`, payload)
+	const normalizedQuiz = normalizeQuiz(data, payload.title) ?? payload
 
 	for (const course of COURSES) {
 		const lesson = course.lessons.find((item) => item.id === lessonId)
 		if (lesson) {
-			lesson.quiz = data
+			lesson.quiz = normalizedQuiz
 			break
 		}
 	}
 
-	return data
+	return normalizedQuiz
 }
 
 export async function fetchLessonComments(lessonId: string) {

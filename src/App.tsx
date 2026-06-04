@@ -1,4 +1,5 @@
 ﻿import { useEffect, useMemo, useState } from 'react'
+import axios from 'axios'
 import type { Course, User } from './domain/index.ts'
 import { COURSES, createCourse, fetchMe, initializeDomainData } from './domain/index.ts'
 import { buildPath, parsePath, type Route } from './routes/appRoutes.ts'
@@ -91,7 +92,7 @@ function resolveAuthUser(payload: unknown, fallbackEmail: string): User {
       ? source.email
       : typeof nestedData.email === 'string' && nestedData.email.trim().length > 0
         ? nestedData.email
-        : fallbackEmail
+        : (fallbackEmail || 'user@example.com')
 
   const role =
     normalizeRole(nestedUser.role) ??
@@ -135,13 +136,24 @@ function App() {
         try {
           const apiUser = await fetchMe()
           if (mounted) {
-            setUser(resolveAuthUser(apiUser, ''))
+            setUser(resolveAuthUser(apiUser, 'user@example.com'))
           }
-        } catch {
-          // Invalid/expired token: clear it to avoid repeated failing requests.
-          logoutApi()
-          if (mounted) {
-            setUser(null)
+        } catch (error) {
+          const status = axios.isAxiosError(error) ? error.response?.status : undefined
+
+          if (status === 401 || status === 403) {
+            // Token is invalid or expired.
+            logoutApi()
+            if (mounted) {
+              setUser(null)
+            }
+          } else if (mounted) {
+            // Keep token for transient/network failures so refresh does not force logout.
+            setUser({
+              name: 'Học viên',
+              email: 'user@example.com',
+              role: 'student',
+            })
           }
         }
       }

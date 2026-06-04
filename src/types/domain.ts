@@ -35,9 +35,37 @@ export type Lesson = {
   description: string
   videoScript: string[]
   keyPhrases: string[]
+  transcript: TranscriptLine[]
+  task: LessonTask[]
+  translations: TranslationLine[]
+  exercises: LessonExercise[]
   isFree: boolean
   quiz: Quiz | null
   resources: Resource[]
+}
+
+export type TranscriptLine = {
+  original: string
+  translated?: string
+  note?: string
+}
+
+export type LessonTask = {
+  prompt: string
+  hint?: string
+  answer?: string
+}
+
+export type TranslationLine = {
+  original: string
+  translated: string
+  note?: string
+}
+
+export type LessonExercise = {
+  prompt: string
+  hint?: string
+  answer?: string
 }
 
 export type Quiz = {
