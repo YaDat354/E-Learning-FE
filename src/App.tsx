@@ -25,6 +25,7 @@ import TeacherLessonManage from './pages/teacher/LessonManage.tsx'
 import TeacherQuizManage from './pages/teacher/QuizManage.tsx'
 import TeacherAssignmentManage from './pages/teacher/AssignmentManage.tsx'
 import AdminDashboard from './pages/admin/Dashboard.tsx'
+import AdminStats from './pages/admin/Stats.tsx'
 import AdminUserManage from './pages/admin/UserManage.tsx'
 import AdminCourseManage from './pages/admin/CourseManage.tsx'
 import AdminLayout from './pages/admin/AdminLayout.tsx'
@@ -485,11 +486,13 @@ function App() {
           user={user}
           activeView="dashboard"
           onGoDashboard={() => navigate({ view: 'admin-dashboard' })}
+          onGoStats={() => navigate({ view: 'admin-stats' })}
           onGoCourses={() => navigate({ view: 'admin-courses' })}
           onGoUsers={() => navigate({ view: 'admin-users' })}
           onLogout={handleLogout}
         >
           <AdminDashboard
+            onGoStats={() => navigate({ view: 'admin-stats' })}
             onGoCourses={() => navigate({ view: 'admin-courses' })}
             onGoUsers={() => navigate({ view: 'admin-users' })}
             onLogout={handleLogout}
@@ -673,15 +676,37 @@ function App() {
         user={user}
         activeView="dashboard"
         onGoDashboard={() => navigate({ view: 'admin-dashboard' })}
+        onGoStats={() => navigate({ view: 'admin-stats' })}
         onGoCourses={() => navigate({ view: 'admin-courses' })}
         onGoUsers={() => navigate({ view: 'admin-users' })}
         onLogout={handleLogout}
       >
         <AdminDashboard
+          onGoStats={() => navigate({ view: 'admin-stats' })}
           onGoCourses={() => navigate({ view: 'admin-courses' })}
           onGoUsers={() => navigate({ view: 'admin-users' })}
           onLogout={handleLogout}
         />
+      </AdminLayout>
+    )
+  }
+
+  if (effectiveRoute.view === 'admin-stats') {
+    if (!user || user.role !== 'admin') {
+      return <AuthPage onLogin={handleLogin} onBack={goToHome} />
+    }
+
+    return (
+      <AdminLayout
+        user={user}
+        activeView="stats"
+        onGoDashboard={() => navigate({ view: 'admin-dashboard' })}
+        onGoStats={() => navigate({ view: 'admin-stats' })}
+        onGoCourses={() => navigate({ view: 'admin-courses' })}
+        onGoUsers={() => navigate({ view: 'admin-users' })}
+        onLogout={handleLogout}
+      >
+        <AdminStats onBackToDashboard={() => navigate({ view: 'admin-dashboard' })} />
       </AdminLayout>
     )
   }
@@ -696,6 +721,7 @@ function App() {
         user={user}
         activeView="users"
         onGoDashboard={() => navigate({ view: 'admin-dashboard' })}
+        onGoStats={() => navigate({ view: 'admin-stats' })}
         onGoCourses={() => navigate({ view: 'admin-courses' })}
         onGoUsers={() => navigate({ view: 'admin-users' })}
         onLogout={handleLogout}
@@ -717,6 +743,7 @@ function App() {
         user={user}
         activeView="courses"
         onGoDashboard={() => navigate({ view: 'admin-dashboard' })}
+        onGoStats={() => navigate({ view: 'admin-stats' })}
         onGoCourses={() => navigate({ view: 'admin-courses' })}
         onGoUsers={() => navigate({ view: 'admin-users' })}
         onLogout={handleLogout}

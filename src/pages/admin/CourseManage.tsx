@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { COURSES } from '../../domain/index.ts'
+import { useEffect, useMemo, useState } from 'react'
+import { COURSES, fetchCourses } from '../../domain/index.ts'
 import './CourseManage.css'
 
 type Props = {
@@ -8,6 +8,36 @@ type Props = {
 
 function CourseManage({ onBackToDashboard }: Props) {
 	const [query, setQuery] = useState('')
+	const [isLoading, setIsLoading] = useState(true)
+	const [error, setError] = useState('')
+
+	useEffect(() => {
+		let mounted = true
+
+		const loadCourses = async () => {
+			setIsLoading(true)
+			setError('')
+
+			try {
+				await fetchCourses()
+			} catch (loadError) {
+				console.error('load admin courses failed', loadError)
+				if (mounted) {
+					setError('Không thể tải danh sách khóa học từ backend.')
+				}
+			} finally {
+				if (mounted) {
+					setIsLoading(false)
+				}
+			}
+		}
+
+		void loadCourses()
+
+		return () => {
+			mounted = false
+		}
+	}, [])
 
 	const filtered = useMemo(() => {
 		if (!query.trim()) return COURSES
@@ -45,6 +75,8 @@ function CourseManage({ onBackToDashboard }: Props) {
 				</div>
 
 				<section className="admin-panel">
+					{isLoading && <div className="admin-list-meta" style={{ marginBottom: 10 }}>Đang tải khóa học từ backend...</div>}
+					{error && <div className="admin-list-meta" style={{ marginBottom: 10, color: '#dc2626' }}>{error}</div>}
 					<table className="admin-table">
 						<thead>
 							<tr>
@@ -74,7 +106,7 @@ function CourseManage({ onBackToDashboard }: Props) {
 									<td style={{ fontSize: 13, color: '#475569' }}>
 										{course.level}
 									</td>
-									<td>{course.lessons.length}</td>
+									<td>{course.lessonCount ?? course.lessons.length}</td>
 									<td>{course.studentCount.toLocaleString()}</td>
 									<td>{course.price.toLocaleString()}</td>
 								</tr>

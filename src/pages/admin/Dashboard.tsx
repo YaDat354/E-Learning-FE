@@ -1,23 +1,49 @@
-import { useMemo } from 'react'
-import { COURSES } from '../../domain/index.ts'
+import { useEffect, useState } from 'react'
+import { fetchCourses } from '../../domain/index.ts'
 import './Dashboard.css'
 
 type Props = {
+	onGoStats: () => void
 	onGoCourses: () => void
 	onGoUsers: () => void
 	onLogout: () => void
 }
 
-function Dashboard({ onGoCourses, onGoUsers, onLogout }: Props) {
-	const totalCourses = COURSES.length
-	const totalLessons = useMemo(
-		() => COURSES.reduce((sum, c) => sum + c.lessons.length, 0),
-		[]
-	)
-	const totalStudents = useMemo(
-		() => COURSES.reduce((sum, c) => sum + c.studentCount, 0),
-		[]
-	)
+function Dashboard({ onGoStats, onGoCourses, onGoUsers, onLogout }: Props) {
+	const [isLoading, setIsLoading] = useState(true)
+	const [error, setError] = useState('')
+
+	useEffect(() => {
+		let mounted = true
+
+		const loadAdminData = async () => {
+			setIsLoading(true)
+			setError('')
+
+			try {
+				await fetchCourses()
+
+				if (!mounted) {
+					return
+				}
+			} catch (loadError) {
+				console.error('load admin dashboard data failed', loadError)
+				if (mounted) {
+					setError('Không thể đồng bộ dữ liệu dashboard từ backend.')
+				}
+			} finally {
+				if (mounted) {
+					setIsLoading(false)
+				}
+			}
+		}
+
+		void loadAdminData()
+
+		return () => {
+			mounted = false
+		}
+	}, [])
 
 	return (
 		<section className="admin-page">
@@ -38,23 +64,38 @@ function Dashboard({ onGoCourses, onGoUsers, onLogout }: Props) {
 
 				<div className="admin-grid">
 					<div className="admin-card">
+						<h3>Điều hướng</h3>
+						<div className="admin-stat">01</div>
+						<p>Vào tab riêng để xem thống kê chi tiết</p>
+					</div>
+					<div className="admin-card">
 						<h3>Khóa học</h3>
-						<div className="admin-stat">{totalCourses}</div>
-						<p>Tổng số khóa học trong hệ thống</p>
+						<div className="admin-stat">02</div>
+						<p>Quản lý và kiểm duyệt nội dung khóa học</p>
 					</div>
 					<div className="admin-card">
-						<h3>Bài học</h3>
-						<div className="admin-stat">{totalLessons}</div>
-						<p>Tổng số bài học đang có</p>
-					</div>
-					<div className="admin-card">
-						<h3>Học viên</h3>
-						<div className="admin-stat">{totalStudents.toLocaleString()}</div>
-						<p>Lượt đăng ký tích lũy</p>
+						<h3>Người dùng</h3>
+						<div className="admin-stat">03</div>
+						<p>Theo dõi tài khoản giảng viên và học viên</p>
 					</div>
 				</div>
 
+				{isLoading && (
+					<div className="admin-panel">
+						<div className="admin-list-meta">Đang tải dữ liệu dashboard từ backend...</div>
+					</div>
+				)}
+				{error && (
+					<div className="admin-panel">
+						<div className="admin-list-meta" style={{ color: '#dc2626' }}>{error}</div>
+					</div>
+				)}
+
 				<div className="admin-nav-grid">
+					<button className="admin-nav-box" onClick={onGoStats}>
+						<h4>Thống kê hệ thống</h4>
+						<p>Xem biểu đồ cột và các chỉ số tổng hợp</p>
+					</button>
 					<button className="admin-nav-box" onClick={onGoCourses}>
 						<h4>Quản lý khóa học</h4>
 						<p>Xem, theo dõi và kiểm duyệt danh sách khóa học</p>
@@ -64,43 +105,6 @@ function Dashboard({ onGoCourses, onGoUsers, onLogout }: Props) {
 						<p>Xem danh sách học viên và giảng viên</p>
 					</button>
 				</div>
-
-				<section className="admin-panel">
-					<h3>Danh sách khóa học</h3>
-					<table className="admin-table">
-						<thead>
-							<tr>
-								<th>Khóa học</th>
-								<th>Danh mục</th>
-								<th>Giảng viên</th>
-								<th>Bài học</th>
-								<th>Học viên</th>
-								<th>Giá (₫)</th>
-							</tr>
-						</thead>
-						<tbody>
-							{COURSES.map((course) => (
-								<tr key={course.id}>
-									<td>
-										<span className="admin-list-title">{course.title}</span>
-									</td>
-									<td>
-										<span
-											className="admin-badge"
-											style={{ background: course.categoryColor }}
-										>
-											{course.category}
-										</span>
-									</td>
-									<td className="admin-list-meta">{course.instructor}</td>
-									<td>{course.lessons.length}</td>
-									<td>{course.studentCount.toLocaleString()}</td>
-									<td>{course.price.toLocaleString()}</td>
-								</tr>
-							))}
-						</tbody>
-					</table>
-				</section>
 			</div>
 		</section>
 	)

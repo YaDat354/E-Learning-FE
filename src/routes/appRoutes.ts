@@ -12,6 +12,7 @@ export type Route =
   | { view: 'teacher-quizzes' }
   | { view: 'teacher-assignments' }
   | { view: 'admin-dashboard' }
+  | { view: 'admin-stats' }
   | { view: 'admin-users' }
   | { view: 'admin-courses' }
   | { view: 'course'; courseId: string }
@@ -79,6 +80,10 @@ export function parsePath(pathname: string): Route {
 
   if (parts.length === 2 && parts[0] === 'admin' && parts[1] === 'dashboard') {
     return { view: 'admin-dashboard' }
+  }
+
+  if (parts.length === 2 && parts[0] === 'admin' && parts[1] === 'thong-ke') {
+    return { view: 'admin-stats' }
   }
 
   if (parts.length === 2 && parts[0] === 'admin' && parts[1] === 'nguoi-dung') {
@@ -155,6 +160,10 @@ export function buildPath(route: Route): string {
 
   if (route.view === 'admin-dashboard') {
     return '/admin/dashboard'
+  }
+
+  if (route.view === 'admin-stats') {
+    return '/admin/thong-ke'
   }
 
   if (route.view === 'admin-users') {

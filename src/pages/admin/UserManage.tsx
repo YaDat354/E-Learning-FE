@@ -1,36 +1,69 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import axios from 'axios'
 import { Edit2, Trash2 } from 'lucide-react'
-import { COURSES, ROLE_LABELS } from '../../domain/index.ts'
+import { COURSES, ROLE_LABELS, fetchCourses } from '../../domain/index.ts'
 import type { User } from '../../domain/index.ts'
+import { createAdminUser, deleteAdminUser, getAdminUsers, updateAdminUser } from '../../services/userService.ts'
 import './UserManage.css'
 
 type Props = {
 	onBackToDashboard: () => void
 }
 
-const INITIAL_USERS: User[] = [
-	{ name: 'Admin Hệ thống', email: 'admin@elearn.vn', role: 'admin' },
-	{ name: 'Cô Mai Anh', email: 'maianh.teacher@elearn.vn', role: 'teacher' },
-	{ name: 'Thầy Minh Đức', email: 'minhduc.teacher@elearn.vn', role: 'teacher' },
-	{ name: 'Cô Lan Anh', email: 'lananh.teacher@elearn.vn', role: 'teacher' },
-	{ name: 'Nguyễn Văn A', email: 'nguyenvana@gmail.com', role: 'student' },
-	{ name: 'Trần Thị B', email: 'tranthib@gmail.com', role: 'student' },
-	{ name: 'Lê Minh C', email: 'leminc@gmail.com', role: 'student' },
-	{ name: 'Phạm Thị D', email: 'phamthid@gmail.com', role: 'student' },
-	{ name: 'Hoàng Văn E', email: 'hoangvane@gmail.com', role: 'student' },
-]
-
-const totalStudents = COURSES.reduce((sum, c) => sum + c.studentCount, 0)
-
 function UserManage({ onBackToDashboard }: Props) {
 	const [query, setQuery] = useState('')
-	const [users, setUsers] = useState<User[]>(INITIAL_USERS)
+	const [users, setUsers] = useState<User[]>([])
+	const [isLoading, setIsLoading] = useState(true)
+	const [isSaving, setIsSaving] = useState(false)
+	const [error, setError] = useState('')
 	const [name, setName] = useState('')
 	const [email, setEmail] = useState('')
 	const [role, setRole] = useState<User['role']>('student')
 	const [editingEmail, setEditingEmail] = useState<string | null>(null)
 
 	const isEditing = Boolean(editingEmail)
+	const totalStudents = useMemo(() => COURSES.reduce((sum, c) => sum + c.studentCount, 0), [users.length])
+
+	useEffect(() => {
+		let mounted = true
+
+		const loadData = async () => {
+			setIsLoading(true)
+			setError('')
+
+			try {
+				const [courses, apiUsers] = await Promise.all([
+					fetchCourses(),
+					getAdminUsers(),
+				])
+
+				if (!mounted) {
+					return
+				}
+
+				setUsers(apiUsers)
+				if (courses.length >= 0) {
+					// Trigger render for teacher course counters that rely on COURSES.
+					setUsers((prev) => [...prev])
+				}
+			} catch (loadError) {
+				console.error('load admin users failed', loadError)
+				if (mounted) {
+					setError('Không thể tải danh sách người dùng từ backend.')
+				}
+			} finally {
+				if (mounted) {
+					setIsLoading(false)
+				}
+			}
+		}
+
+		void loadData()
+
+		return () => {
+			mounted = false
+		}
+	}, [])
 
 	const resetForm = () => {
 		setName('')
@@ -42,7 +75,7 @@ function UserManage({ onBackToDashboard }: Props) {
 	const isEmailUsed = (value: string, exceptEmail?: string | null) =>
 		users.some((user) => user.email.toLowerCase() === value.toLowerCase() && user.email !== exceptEmail)
 
-	const handleCreate = () => {
+	const handleCreate = async () => {
 		const normalizedName = name.trim()
 		const normalizedEmail = email.trim().toLowerCase()
 
@@ -56,14 +89,25 @@ function UserManage({ onBackToDashboard }: Props) {
 			return
 		}
 
-		const newUser: User = {
-			name: normalizedName,
-			email: normalizedEmail,
-			role,
+		setIsSaving(true)
+		setError('')
+		try {
+			const created = await createAdminUser({
+				name: normalizedName,
+				email: normalizedEmail,
+				role,
+			})
+			setUsers((prev) => [created, ...prev])
+			resetForm()
+		} catch (createError) {
+			if (axios.isAxiosError(createError)) {
+				setError(createError.response?.data?.message ?? 'Không thể tạo người dùng.')
+			} else {
+				setError('Không thể tạo người dùng.')
+			}
+		} finally {
+			setIsSaving(false)
 		}
-
-		setUsers((prev) => [newUser, ...prev])
-		resetForm()
 	}
 
 	const startEdit = (user: User) => {
@@ -73,7 +117,7 @@ function UserManage({ onBackToDashboard }: Props) {
 		setRole(user.role)
 	}
 
-	const handleSaveEdit = () => {
+	const handleSaveEdit = async () => {
 		if (!editingEmail) {
 			return
 		}
@@ -91,17 +135,35 @@ function UserManage({ onBackToDashboard }: Props) {
 			return
 		}
 
-		setUsers((prev) =>
-			prev.map((user) =>
-				user.email === editingEmail
-					? { name: normalizedName, email: normalizedEmail, role }
-					: user,
-			),
-		)
-		resetForm()
+		setIsSaving(true)
+		setError('')
+		try {
+			const updated = await updateAdminUser(editingEmail, {
+				name: normalizedName,
+				email: normalizedEmail,
+				role,
+			})
+
+			setUsers((prev) =>
+				prev.map((user) =>
+					user.email === editingEmail
+						? updated
+						: user,
+				),
+			)
+			resetForm()
+		} catch (updateError) {
+			if (axios.isAxiosError(updateError)) {
+				setError(updateError.response?.data?.message ?? 'Không thể cập nhật người dùng.')
+			} else {
+				setError('Không thể cập nhật người dùng.')
+			}
+		} finally {
+			setIsSaving(false)
+		}
 	}
 
-	const handleDelete = (user: User) => {
+	const handleDelete = async (user: User) => {
 		if (user.role === 'admin') {
 			const adminCount = users.filter((item) => item.role === 'admin').length
 			if (adminCount <= 1) {
@@ -115,9 +177,22 @@ function UserManage({ onBackToDashboard }: Props) {
 			return
 		}
 
-		setUsers((prev) => prev.filter((item) => item.email !== user.email))
-		if (editingEmail === user.email) {
-			resetForm()
+		setIsSaving(true)
+		setError('')
+		try {
+			await deleteAdminUser(user.email)
+			setUsers((prev) => prev.filter((item) => item.email !== user.email))
+			if (editingEmail === user.email) {
+				resetForm()
+			}
+		} catch (deleteError) {
+			if (axios.isAxiosError(deleteError)) {
+				setError(deleteError.response?.data?.message ?? 'Không thể xóa người dùng.')
+			} else {
+				setError('Không thể xóa người dùng.')
+			}
+		} finally {
+			setIsSaving(false)
 		}
 	}
 
@@ -149,10 +224,16 @@ function UserManage({ onBackToDashboard }: Props) {
 	const teacherCourseMap = useMemo(() => {
 		const counts = new Map<string, number>()
 		for (const course of COURSES) {
+			const byEmail = (course.instructorEmail ?? '').trim().toLowerCase()
+			if (byEmail) {
+				counts.set(byEmail, (counts.get(byEmail) ?? 0) + 1)
+				continue
+			}
+
 			counts.set(course.instructor, (counts.get(course.instructor) ?? 0) + 1)
 		}
 		return counts
-	}, [])
+	}, [users.length])
 
 	const roleClass = (role: User['role']) => {
 		if (role === 'admin') return 'admin-badge admin-role-admin'
@@ -176,6 +257,17 @@ function UserManage({ onBackToDashboard }: Props) {
 						</button>
 					</div>
 				</header>
+
+				{isLoading && (
+					<section className="admin-panel">
+						<p style={{ margin: 0, color: '#64748b' }}>Đang tải dữ liệu người dùng từ backend...</p>
+					</section>
+				)}
+				{error && (
+					<section className="admin-panel">
+						<p style={{ margin: 0, color: '#dc2626' }}>{error}</p>
+					</section>
+				)}
 
 				<section className="admin-edit-panel">
 					<h4>{isEditing ? 'Sửa người dùng' : 'Thêm người dùng mới'}</h4>
@@ -213,7 +305,7 @@ function UserManage({ onBackToDashboard }: Props) {
 						</div>
 					</div>
 					<div className="admin-actions">
-						<button className="admin-btn" onClick={isEditing ? handleSaveEdit : handleCreate}>
+						<button className="admin-btn" onClick={isEditing ? () => void handleSaveEdit() : () => void handleCreate()} disabled={isSaving || isLoading}>
 							{isEditing ? 'Lưu thay đổi' : 'Thêm người dùng'}
 						</button>
 						<button className="admin-btn ghost" onClick={resetForm}>
@@ -259,7 +351,7 @@ function UserManage({ onBackToDashboard }: Props) {
 												<button className="admin-action-btn" onClick={() => startEdit(user)} title="Sửa">
 													<Edit2 size={18} />
 												</button>
-												<button className="admin-action-btn" onClick={() => handleDelete(user)} title="Xóa">
+												<button className="admin-action-btn" onClick={() => void handleDelete(user)} title="Xóa" disabled={isSaving || isLoading}>
 													<Trash2 size={18} />
 												</button>
 											</div>
@@ -290,13 +382,13 @@ function UserManage({ onBackToDashboard }: Props) {
 											<span className="admin-list-title">{user.name}</span>
 										</td>
 										<td className="admin-list-meta">{user.email}</td>
-										<td>{teacherCourseMap.get(user.name) ?? 0}</td>
+										<td>{teacherCourseMap.get(user.email.toLowerCase()) ?? teacherCourseMap.get(user.name) ?? 0}</td>
 										<td>
 											<div className="admin-actions">
 												<button className="admin-action-btn" onClick={() => startEdit(user)} title="Sửa">
 													<Edit2 size={18} />
 												</button>
-												<button className="admin-action-btn" onClick={() => handleDelete(user)} title="Xóa">
+												<button className="admin-action-btn" onClick={() => void handleDelete(user)} title="Xóa" disabled={isSaving || isLoading}>
 													<Trash2 size={18} />
 												</button>
 											</div>
@@ -340,7 +432,7 @@ function UserManage({ onBackToDashboard }: Props) {
 											<button className="admin-action-btn" onClick={() => startEdit(user)} title="Sửa">
 												<Edit2 size={18} />
 											</button>
-											<button className="admin-action-btn" onClick={() => handleDelete(user)} title="Xóa">
+											<button className="admin-action-btn" onClick={() => void handleDelete(user)} title="Xóa" disabled={isSaving || isLoading}>
 												<Trash2 size={18} />
 											</button>
 											</div>

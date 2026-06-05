@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import {
   LayoutDashboard,
+  BarChart3,
   BookOpen,
   Users,
   LogOut,
@@ -9,12 +10,13 @@ import {
 import type { User } from '../../domain/index.ts'
 import './AdminLayout.css'
 
-export type AdminActiveView = 'dashboard' | 'courses' | 'users'
+export type AdminActiveView = 'dashboard' | 'stats' | 'courses' | 'users'
 
 type Props = {
   user: User
   activeView: AdminActiveView
   onGoDashboard: () => void
+  onGoStats: () => void
   onGoCourses: () => void
   onGoUsers: () => void
   onLogout: () => void
@@ -23,13 +25,15 @@ type Props = {
 
 const NAV_ITEMS = [
   { key: 'dashboard' as const, icon: <LayoutDashboard size={18} />, label: 'Dashboard' },
+  { key: 'stats' as const, icon: <BarChart3 size={18} />, label: 'Thống kê' },
   { key: 'courses' as const, icon: <BookOpen size={18} />, label: 'Khóa học' },
   { key: 'users' as const, icon: <Users size={18} />, label: 'Người dùng' },
 ]
 
-function AdminLayout({ user, activeView, onGoDashboard, onGoCourses, onGoUsers, onLogout, children }: Props) {
+function AdminLayout({ user, activeView, onGoDashboard, onGoStats, onGoCourses, onGoUsers, onLogout, children }: Props) {
   const handlers: Record<string, () => void> = {
     dashboard: onGoDashboard,
+    stats: onGoStats,
     courses: onGoCourses,
     users: onGoUsers,
   }
