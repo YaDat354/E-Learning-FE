@@ -77,12 +77,39 @@ function normalizeCourseLevel(value: unknown): Course['level'] {
 	return 'Cơ bản'
 }
 
-function normalizeCourseCategory(value: unknown, title: string): string {
+function serializeCourseLevel(level: Course['level'] | string | undefined): string | undefined {
+	if (!level) {
+		return undefined
+	}
+
+	const normalized = level.trim().toLowerCase()
+
+	if (normalized === 'cơ bản' || normalized === 'co_ban' || normalized === 'coban' || normalized === 'beginner') {
+		return 'co_ban'
+	}
+
+	if (normalized === 'trung cấp' || normalized === 'trung_cap' || normalized === 'trungcap' || normalized === 'intermediate') {
+		return 'trung_cap'
+	}
+
+	if (normalized === 'nâng cao' || normalized === 'cao_cap' || normalized === 'caocap' || normalized === 'advanced') {
+		return 'cao_cap'
+	}
+
+	return undefined
+}
+
+function normalizeCourseCategory(value: unknown, title: unknown): string {
 	if (typeof value === 'string' && value.trim().length > 0) {
 		return value.trim()
 	}
 
-	const baseTitle = title.split(' - ')[0]?.trim() || title.trim()
+	const safeTitle = typeof title === 'string' ? title : ''
+	if (!safeTitle) {
+		return 'Khác'
+	}
+
+	const baseTitle = safeTitle.split(' - ')[0]?.trim() || safeTitle.trim()
 	if (!baseTitle) {
 		return 'Khác'
 	}
@@ -144,6 +171,23 @@ function readStringFromSources(sources: Array<Record<string, unknown>>, keys: st
 			const value = source[key]
 			if (typeof value === 'string' && value.trim().length > 0) {
 				return value
+			}
+		}
+	}
+
+	return ''
+}
+
+function readIdentifierFromSources(sources: Array<Record<string, unknown>>, keys: string[]): string {
+	for (const source of sources) {
+		for (const key of keys) {
+			const value = source[key]
+			if (typeof value === 'string' && value.trim().length > 0) {
+				return value
+			}
+
+			if (typeof value === 'number' && Number.isFinite(value)) {
+				return String(value)
 			}
 		}
 	}
@@ -521,18 +565,41 @@ function replaceArray<T>(target: T[], next: T[]) {
 
 function normalizeCourse(course: Course): Course {
 	const raw = asRecord(course)
-	const title = typeof raw.title === 'string' && raw.title.trim().length > 0 ? raw.title : course.title
+	const teacher = asRecord(raw.teacher)
+	const instructor = asRecord(raw.instructor)
+	const fallbackTitle = typeof course?.title === 'string' ? course.title : ''
+	const title = typeof raw.title === 'string' && raw.title.trim().length > 0
+		? raw.title.trim()
+		: fallbackTitle || 'Khóa học chưa có tiêu đề'
 	const level = normalizeCourseLevel(raw.level ?? course.level)
+	const instructorNameRaw = typeof raw.instructor === 'string' ? raw.instructor : ''
 	const teacherName = typeof raw.teacher_name === 'string' && raw.teacher_name.trim().length > 0
 		? raw.teacher_name
 		: typeof raw.teacherName === 'string' && raw.teacherName.trim().length > 0
 			? raw.teacherName
+			: typeof teacher.fullName === 'string' && teacher.fullName.trim().length > 0
+				? teacher.fullName
+				: typeof instructor.fullName === 'string' && instructor.fullName.trim().length > 0
+					? instructor.fullName
+					: typeof instructor.name === 'string' && instructor.name.trim().length > 0
+						? instructor.name
+						: instructorNameRaw.trim().length > 0
+							? instructorNameRaw
 			: course.instructor
 	const teacherEmail = typeof raw.teacher_email === 'string' && raw.teacher_email.trim().length > 0
 		? raw.teacher_email
 		: typeof raw.teacherEmail === 'string' && raw.teacherEmail.trim().length > 0
 			? raw.teacherEmail
+			: typeof teacher.email === 'string' && teacher.email.trim().length > 0
+				? teacher.email
+				: typeof raw.instructorEmail === 'string' && raw.instructorEmail.trim().length > 0
+					? raw.instructorEmail
+					: typeof raw.instructor_email === 'string' && raw.instructor_email.trim().length > 0
+						? raw.instructor_email
+						: typeof instructor.email === 'string' && instructor.email.trim().length > 0
+							? instructor.email
 			: ''
+	const teacherId = readIdentifierFromSources([raw, teacher, instructor], ['teacherId', 'teacher_id', 'ownerId', 'owner_id', 'id', '_id'])
 	const category = normalizeCourseCategory(raw.category, title)
 	const categoryColor = typeof raw.categoryColor === 'string' && raw.categoryColor.trim().length > 0
 		? raw.categoryColor
@@ -559,14 +626,19 @@ function normalizeCourse(course: Course): Course {
 		? raw.tags.filter((tag): tag is string => typeof tag === 'string' && tag.trim().length > 0)
 		: [level]
 	const lessonRows = Array.isArray(raw.lessons) ? raw.lessons as Array<Partial<Lesson>> : course.lessons ?? []
+	const lessonCount = readNumberFromSources([raw], ['lessonCount', 'lesson_count'])
+		?? (Array.isArray(raw.lessons) ? raw.lessons.length : course.lessons?.length ?? 0)
 
 	return {
-		id: typeof raw.id === 'string' && raw.id.trim().length > 0
-			? raw.id
-			: course.id || `course-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+		id: readIdentifierFromSources([raw], ['id', '_id', 'courseId', 'course_id'])
+			|| course.id
+			|| `course-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+		teacherId: teacherId || undefined,
+		lessonCount,
 		title,
 		description,
 		instructor: teacherName || 'Đang cập nhật',
+		instructorEmail: teacherEmail || undefined,
 		instructorAvatar,
 		category,
 		categoryColor,
@@ -601,15 +673,20 @@ function normalizeCourseDetail(payload: unknown): Course {
 			: ''
 	const lessons = Array.isArray(raw.lessons) ? raw.lessons.map((lesson) => normalizeLesson(lesson as Partial<Lesson>)) : []
 	const totalStudents = typeof stats.totalStudents === 'number' ? stats.totalStudents : 0
+	const lessonCount = readNumberFromSources([raw, stats], ['lessonCount', 'lesson_count', 'totalLessons', 'total_lessons'])
+		?? lessons.length
 	const durationLabel = typeof stats.totalDurationLabel === 'string' && stats.totalDurationLabel.trim().length > 0
 		? stats.totalDurationLabel
 		: 'Đang cập nhật'
 
 	return normalizeCourse({
 		id: typeof raw.id === 'string' ? raw.id : '',
+		teacherId: readIdentifierFromSources([raw, teacher], ['teacherId', 'teacher_id', 'ownerId', 'owner_id', 'id', '_id']) || undefined,
+		lessonCount,
 		title,
 		description: typeof raw.description === 'string' ? raw.description : '',
 		instructor: teacherName,
+		instructorEmail: teacherEmail || undefined,
 		instructorAvatar: buildInitialsFromName(teacherName || teacherEmail || title),
 		category: courseCategory,
 		categoryColor: normalizeCategoryColor(level),
@@ -696,31 +773,98 @@ export async function initializeDomainData(): Promise<boolean> {
 		return true
 	}
 
-	const results = await Promise.allSettled([fetchCourses(), fetchUsers()])
+	const results = await Promise.allSettled([fetchCourses()])
 	initialized = true
 
 	return results.some((result) => result.status === 'fulfilled')
 }
 
 export async function createCourse(payload: Omit<Course, 'id'> & { id?: string }) {
-	const { data } = await api.post<Course>('/courses', payload)
-	COURSES.unshift(normalizeCourse(data))
-	return data
+	const requestPayload = {
+		title: payload.title,
+		level: serializeCourseLevel(payload.level),
+		description: payload.description,
+	}
+	const { data } = await api.post('/courses', requestPayload)
+	const normalized = normalizeCourse(extractObjectPayload<Course>(data))
+	COURSES.unshift(normalized)
+	return normalized
 }
 
 export async function updateCourse(courseId: string, payload: Partial<Course>) {
-	const { data } = await api.put<Course>(`/courses/${encodeURIComponent(courseId)}`, payload)
+	const requestPayload = {
+		title: payload.title,
+		level: serializeCourseLevel(payload.level),
+		description: payload.description,
+	}
+
+	let normalized: Course
+
+	try {
+		const response = await api.patch(`/courses/${encodeURIComponent(courseId)}`, requestPayload)
+		normalized = normalizeCourse(extractObjectPayload<Course>(response.data))
+	} catch {
+		const fallbackResponse = await api.put(`/courses/${encodeURIComponent(courseId)}`, requestPayload)
+		normalized = normalizeCourse(extractObjectPayload<Course>(fallbackResponse.data))
+	}
+
 	const index = COURSES.findIndex((course) => course.id === courseId)
 
 	if (index >= 0) {
-		COURSES[index] = normalizeCourse(data)
+		COURSES[index] = normalized
 	}
 
-	return data
+	return normalized
 }
 
 export async function updateLesson(lessonId: string, payload: Partial<Lesson>) {
-	const { data } = await api.put<Lesson>(`/lessons/${encodeURIComponent(lessonId)}`, payload)
+	const course = COURSES.find((item) => item.lessons.some((lesson) => lesson.id === lessonId))
+	if (!course) {
+		throw new Error(`course not found for lesson ${lessonId}`)
+	}
+
+	const encodedCourseId = encodeURIComponent(course.id)
+	const encodedLessonId = encodeURIComponent(lessonId)
+	const updateTargets: Array<{ method: 'patch' | 'put'; endpoint: string }> = [
+		{ method: 'patch', endpoint: `/lessons/${encodedLessonId}` },
+		{ method: 'patch', endpoint: `/courses/${encodedCourseId}/lessons/${encodedLessonId}` },
+		{ method: 'patch', endpoint: `/courses/${encodedCourseId}/lesson/${encodedLessonId}` },
+		{ method: 'put', endpoint: `/lessons/${encodedLessonId}` },
+		{ method: 'put', endpoint: `/courses/${encodedCourseId}/lessons/${encodedLessonId}` },
+	]
+
+	const requestPayload = {
+		title: payload.title,
+		description: payload.description,
+		duration: payload.duration,
+		isFree: payload.isFree,
+		// Compatibility aliases for BE schemas using snake_case.
+		is_free: payload.isFree,
+	}
+
+	let data: Lesson | null = null
+
+	for (const target of updateTargets) {
+		try {
+			const response = target.method === 'patch'
+				? await api.patch(target.endpoint, requestPayload)
+				: await api.put(target.endpoint, requestPayload)
+
+			const extracted = extractObjectPayload<Partial<Lesson>>(response.data)
+			data = normalizeLesson(extracted)
+			break
+		} catch (error) {
+			if (axios.isAxiosError(error) && (error.response?.status === 404 || error.response?.status === 405)) {
+				continue
+			}
+
+			throw error
+		}
+	}
+
+	if (!data) {
+		throw new Error(`lesson update route not found for ${lessonId}`)
+	}
 
 	for (const course of COURSES) {
 		const index = course.lessons.findIndex((lesson) => lesson.id === lessonId)
@@ -739,7 +883,38 @@ export async function updateLesson(lessonId: string, payload: Partial<Lesson>) {
 }
 
 export async function deleteLesson(lessonId: string) {
-	await api.delete(`/lessons/${encodeURIComponent(lessonId)}`)
+	const course = COURSES.find((item) => item.lessons.some((lesson) => lesson.id === lessonId))
+	if (!course) {
+		throw new Error(`course not found for lesson ${lessonId}`)
+	}
+
+	const encodedCourseId = encodeURIComponent(course.id)
+	const encodedLessonId = encodeURIComponent(lessonId)
+	const deleteTargets = [
+		`/lessons/${encodedLessonId}`,
+		`/courses/${encodedCourseId}/lessons/${encodedLessonId}`,
+		`/courses/${encodedCourseId}/lesson/${encodedLessonId}`,
+	]
+
+	let deleted = false
+
+	for (const endpoint of deleteTargets) {
+		try {
+			await api.delete(endpoint)
+			deleted = true
+			break
+		} catch (error) {
+			if (axios.isAxiosError(error) && (error.response?.status === 404 || error.response?.status === 405)) {
+				continue
+			}
+
+			throw error
+		}
+	}
+
+	if (!deleted) {
+		throw new Error(`lesson delete route not found for ${lessonId}`)
+	}
 
 	for (const course of COURSES) {
 		const next = course.lessons.filter((lesson) => lesson.id !== lessonId)

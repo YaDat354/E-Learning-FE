@@ -1,9 +1,12 @@
 import { COURSES, ROLE_LABELS } from '../../domain/index.ts'
 import type { User } from '../../domain/index.ts'
+import { getTeacherCourses } from '../../utils/teacher.ts'
 import './Dashboard.css'
 
 type Props = {
 	user: User
+	teacherCourseIds: string[]
+	onOpenProfile: () => void
 	onGoCourses: () => void
 	onGoCreateCourse: () => void
 	onGoLessons: () => void
@@ -12,10 +15,11 @@ type Props = {
 	onLogout: () => void
 }
 
-function Dashboard({ user, onGoCourses, onGoCreateCourse, onGoLessons, onGoQuizzes, onGoAssignments, onLogout }: Props) {
-	const totalStudents = COURSES.reduce((sum, c) => sum + c.studentCount, 0)
-	const totalLessons = COURSES.reduce((sum, c) => sum + c.lessons.length, 0)
-	const totalQuizzes = COURSES.reduce(
+function Dashboard({ user, teacherCourseIds, onOpenProfile, onGoCourses, onGoCreateCourse, onGoLessons, onGoQuizzes, onGoAssignments, onLogout }: Props) {
+	const teacherCourses = getTeacherCourses(COURSES, user, teacherCourseIds)
+	const totalStudents = teacherCourses.reduce((sum, c) => sum + c.studentCount, 0)
+	const totalLessons = teacherCourses.reduce((sum, c) => sum + (c.lessonCount ?? c.lessons.length), 0)
+	const totalQuizzes = teacherCourses.reduce(
 		(sum, c) => sum + c.lessons.filter((l) => l.quiz !== null).length,
 		0,
 	)
@@ -31,6 +35,9 @@ function Dashboard({ user, onGoCourses, onGoCreateCourse, onGoLessons, onGoQuizz
 						</p>
 					</div>
 					<div className="teacher-toolbar">
+						<button className="teacher-btn ghost" onClick={onOpenProfile}>
+							Hồ sơ
+						</button>
 						<button className="teacher-btn ghost" onClick={onGoCourses}>
 							Khóa học
 						</button>
@@ -55,7 +62,7 @@ function Dashboard({ user, onGoCourses, onGoCreateCourse, onGoLessons, onGoQuizz
 				<div className="teacher-grid">
 					<article className="teacher-card">
 						<h3>Tổng khóa học</h3>
-						<p className="teacher-metric">{COURSES.length}</p>
+						<p className="teacher-metric">{teacherCourses.length}</p>
 					</article>
 					<article className="teacher-card">
 						<h3>Tổng bài học</h3>
@@ -98,12 +105,17 @@ function Dashboard({ user, onGoCourses, onGoCreateCourse, onGoLessons, onGoQuizz
 						</button>
 					</div>
 					<div className="teacher-list">
-						{COURSES.map((course) => (
+						{teacherCourses.length === 0 && (
+							<div className="teacher-list-item">
+								<div className="teacher-list-meta">Chưa có khóa học thuộc giảng viên này.</div>
+							</div>
+						)}
+						{teacherCourses.map((course) => (
 							<div className="teacher-list-item" key={course.id}>
 								<div>
 									<div className="teacher-list-title">{course.title}</div>
 									<div className="teacher-list-meta">
-										{course.level} · {course.lessons.length} bài học ·{' '}
+										{course.level} · {(course.lessonCount ?? course.lessons.length)} bài học ·{' '}
 										{course.studentCount.toLocaleString()} học viên · {course.rating}⭐
 									</div>
 								</div>

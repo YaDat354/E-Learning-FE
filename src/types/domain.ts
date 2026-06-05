@@ -1,6 +1,6 @@
 export type UserRole = 'student' | 'teacher' | 'admin'
 
-export type User = { name: string; email: string; role: UserRole }
+export type User = { id?: string; name: string; email: string; role: UserRole }
 
 export const ROLE_LABELS: Record<UserRole, string> = {
   student: 'Học viên',
@@ -10,9 +10,12 @@ export const ROLE_LABELS: Record<UserRole, string> = {
 
 export type Course = {
   id: string
+  teacherId?: string
+  lessonCount?: number
   title: string
   description: string
   instructor: string
+  instructorEmail?: string
   instructorAvatar: string
   category: string
   categoryColor: string

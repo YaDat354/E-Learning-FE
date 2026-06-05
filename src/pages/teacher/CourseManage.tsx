@@ -1,9 +1,13 @@
 ﻿import { useMemo, useState } from 'react'
-import { COURSES } from '../../domain/index.ts'
-import type { Course } from '../../domain/index.ts'
+import axios from 'axios'
+import { COURSES, updateCourse } from '../../domain/index.ts'
+import type { Course, User } from '../../domain/index.ts'
+import { getTeacherCourses } from '../../utils/teacher.ts'
 import './CourseManage.css'
 
 type Props = {
+	user: User
+	teacherCourseIds: string[]
 	onBackToDashboard: () => void
 	onGoCreateCourse: () => void
 	onGoLessons: () => void
@@ -15,13 +19,15 @@ function levelClass(level: string) {
 	return 'teacher-level-badge teacher-level-advanced'
 }
 
-function CourseManage({ onBackToDashboard, onGoCreateCourse, onGoLessons }: Props) {
+function CourseManage({ user, teacherCourseIds, onBackToDashboard, onGoCreateCourse, onGoLessons }: Props) {
 	const [query, setQuery] = useState('')
-	const [courses, setCourses] = useState<Course[]>(COURSES)
 	const [editingId, setEditingId] = useState<string | null>(null)
 	const [editTitle, setEditTitle] = useState('')
-	const [editPrice, setEditPrice] = useState(0)
 	const [editLevel, setEditLevel] = useState<Course['level']>('Cơ bản')
+	const [isSaving, setIsSaving] = useState(false)
+	const [error, setError] = useState('')
+
+	const courses = getTeacherCourses(COURSES, user, teacherCourseIds)
 
 	const filtered = useMemo(() => {
 		if (!query.trim()) return courses
@@ -33,19 +39,46 @@ function CourseManage({ onBackToDashboard, onGoCreateCourse, onGoLessons }: Prop
 	const startEdit = (course: Course) => {
 		setEditingId(course.id)
 		setEditTitle(course.title)
-		setEditPrice(course.price)
 		setEditLevel(course.level)
 	}
 
-	const saveEdit = () => {
-		setCourses((prev) =>
-			prev.map((c) =>
-				c.id === editingId
-					? { ...c, title: editTitle, price: editPrice, level: editLevel }
-					: c,
-			),
-		)
-		setEditingId(null)
+	const saveEdit = async () => {
+		if (!editingId) {
+			return
+		}
+
+		const editingCourse = courses.find((course) => course.id === editingId)
+
+		setIsSaving(true)
+		setError('')
+
+		try {
+			await updateCourse(editingId, {
+				title: editTitle,
+				level: editLevel,
+				description: editingCourse?.description ?? '',
+			})
+			setEditingId(null)
+		} catch (saveError) {
+			console.error('update course failed', saveError)
+			if (axios.isAxiosError(saveError)) {
+				const status = saveError.response?.status
+				const payload = saveError.response?.data as { message?: string; error?: string } | undefined
+				const detail = payload?.message || payload?.error || saveError.message
+
+				if (status === 403) {
+					setError(`Bạn không có quyền cập nhật khóa học này (${status}). ${detail}`)
+				} else if (status === 400 || status === 422) {
+					setError(`Dữ liệu cập nhật chưa hợp lệ (${status}). ${detail}`)
+				} else {
+					setError(`Không thể cập nhật khóa học (${status ?? 'network'}). ${detail}`)
+				}
+			} else {
+				setError('Không thể cập nhật khóa học. Vui lòng thử lại.')
+			}
+		} finally {
+			setIsSaving(false)
+		}
 	}
 
 	const editingCourse = courses.find((c) => c.id === editingId)
@@ -57,7 +90,7 @@ function CourseManage({ onBackToDashboard, onGoCreateCourse, onGoLessons }: Prop
 					<div>
 						<h1 className="teacher-title">Quản lý khóa học</h1>
 						<p className="teacher-subtitle">
-							{courses.length} khóa học · Toàn bộ danh sách
+							{courses.length} khóa học · Dữ liệu theo giảng viên
 						</p>
 					</div>
 					<div className="teacher-toolbar">
@@ -95,15 +128,6 @@ function CourseManage({ onBackToDashboard, onGoCreateCourse, onGoLessons }: Prop
 								/>
 							</div>
 							<div>
-								<label className="teacher-form-label">Giá (₫)</label>
-								<input
-									className="teacher-input teacher-input-full"
-									type="number"
-									value={editPrice}
-									onChange={(e) => setEditPrice(Number(e.target.value))}
-								/>
-							</div>
-							<div>
 								<label className="teacher-form-label">Trình độ</label>
 								<select
 									className="teacher-select teacher-input-full"
@@ -119,8 +143,8 @@ function CourseManage({ onBackToDashboard, onGoCreateCourse, onGoLessons }: Prop
 							</div>
 						</div>
 						<div className="teacher-actions">
-							<button className="teacher-btn" onClick={saveEdit}>
-								Lưu thay đổi
+							<button className="teacher-btn" onClick={() => void saveEdit()} disabled={isSaving}>
+								{isSaving ? 'Đang lưu...' : 'Lưu thay đổi'}
 							</button>
 							<button
 								className="teacher-btn ghost"
@@ -133,6 +157,7 @@ function CourseManage({ onBackToDashboard, onGoCreateCourse, onGoLessons }: Prop
 				)}
 
 				<section className="teacher-panel">
+					{error && <div className="teacher-list-meta" style={{ marginBottom: 12, color: '#dc2626' }}>{error}</div>}
 					<table className="teacher-table">
 						<thead>
 							<tr>
@@ -146,6 +171,11 @@ function CourseManage({ onBackToDashboard, onGoCreateCourse, onGoLessons }: Prop
 							</tr>
 						</thead>
 						<tbody>
+							{filtered.length === 0 && (
+								<tr>
+									<td colSpan={7} className="teacher-list-meta">Không có khóa học phù hợp với giảng viên hiện tại.</td>
+								</tr>
+							)}
 							{filtered.map((course) => (
 								<tr key={course.id}>
 									<td>
@@ -165,7 +195,7 @@ function CourseManage({ onBackToDashboard, onGoCreateCourse, onGoLessons }: Prop
 											{course.level}
 										</span>
 									</td>
-									<td>{course.lessons.length}</td>
+									<td>{course.lessonCount ?? course.lessons.length}</td>
 									<td>{course.studentCount.toLocaleString()}</td>
 									<td>{course.price.toLocaleString()}</td>
 									<td>

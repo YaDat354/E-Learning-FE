@@ -1,38 +1,107 @@
-import { Fragment, useMemo, useState } from 'react'
-import { COURSES } from '../../domain/index.ts'
-import type { Lesson } from '../../domain/index.ts'
+import { Fragment, useEffect, useMemo, useState } from 'react'
+import axios from 'axios'
+import { COURSES, deleteLesson, updateLesson } from '../../domain/index.ts'
+import type { Lesson, User } from '../../domain/index.ts'
+import { fetchCourseDetail } from '../../services/courseService.ts'
 import VideoPlayer from '../../components/course/VideoPlayer.tsx'
 import QuizPanel from '../../components/course/QuizPanel.tsx'
+import { getTeacherCourses } from '../../utils/teacher.ts'
 import './LessonManage.css'
 
 type Props = {
+	user: User
+	teacherCourseIds: string[]
 	onBackToDashboard: () => void
 }
 
-function LessonManage({ onBackToDashboard }: Props) {
-	const [selectedCourseId, setSelectedCourseId] = useState(COURSES[0].id)
+function LessonManage({ user, teacherCourseIds, onBackToDashboard }: Props) {
+	const teacherCourses = getTeacherCourses(COURSES, user, teacherCourseIds)
+	const [selectedCourseId, setSelectedCourseId] = useState(teacherCourses[0]?.id ?? '')
 	const [editingId, setEditingId] = useState<string | null>(null)
 	const [editTitle, setEditTitle] = useState('')
 	const [editDuration, setEditDuration] = useState('')
 	const [editIsFree, setEditIsFree] = useState(false)
-	const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set())
-	const [lessonUpdates, setLessonUpdates] = useState<Record<string, Partial<Lesson>>>({})
 	const [expandedLessonId, setExpandedLessonId] = useState<string | null>(null)
+	const [isSaving, setIsSaving] = useState(false)
+	const [isHydratingLessons, setIsHydratingLessons] = useState(false)
+	const [error, setError] = useState('')
+	const [refreshKey, setRefreshKey] = useState(0)
 
 	const course = useMemo(
-		() => COURSES.find((c) => c.id === selectedCourseId) ?? COURSES[0],
-		[selectedCourseId],
+		() => teacherCourses.find((c) => c.id === selectedCourseId) ?? teacherCourses[0] ?? null,
+		[selectedCourseId, teacherCourses, refreshKey],
 	)
 
+	useEffect(() => {
+		if (teacherCourses.length === 0) {
+			if (selectedCourseId !== '') {
+				setSelectedCourseId('')
+			}
+			return
+		}
+
+		if (!teacherCourses.some((item) => item.id === selectedCourseId)) {
+			setSelectedCourseId(teacherCourses[0].id)
+		}
+	}, [selectedCourseId, teacherCourses])
+
+	useEffect(() => {
+		if (!selectedCourseId) {
+			return
+		}
+
+		const current = COURSES.find((entry) => entry.id === selectedCourseId)
+		if (current && current.lessons.length > 0) {
+			return
+		}
+
+		let mounted = true
+
+		const hydrateLessons = async () => {
+			setIsHydratingLessons(true)
+			setError('')
+
+			try {
+				const detail = await fetchCourseDetail(selectedCourseId)
+
+				if (!mounted) {
+					return
+				}
+
+				const index = COURSES.findIndex((entry) => entry.id === selectedCourseId)
+				if (index >= 0) {
+					COURSES[index] = {
+						...COURSES[index],
+						...detail,
+						lessons: detail.lessons,
+					}
+				} else {
+					COURSES.unshift(detail)
+				}
+
+				setRefreshKey((prev) => prev + 1)
+			} catch (hydrateError) {
+				console.error('hydrate lesson list failed', hydrateError)
+				if (mounted) {
+					setError('Không thể tải danh sách bài học từ backend.')
+				}
+			} finally {
+				if (mounted) {
+					setIsHydratingLessons(false)
+				}
+			}
+		}
+
+		void hydrateLessons()
+
+		return () => {
+			mounted = false
+		}
+	}, [selectedCourseId])
+
 	const lessonList = useMemo(
-		() =>
-			course.lessons
-				.filter((lesson) => !deletedIds.has(lesson.id))
-				.map((lesson) => ({
-					...lesson,
-					...lessonUpdates[lesson.id],
-				})),
-		[course, deletedIds, lessonUpdates],
+		() => course?.lessons ?? [],
+		[course],
 	)
 
 	const startEdit = (lesson: Lesson) => {
@@ -42,28 +111,60 @@ function LessonManage({ onBackToDashboard }: Props) {
 		setEditIsFree(lesson.isFree)
 	}
 
-	const saveEdit = () => {
-		if (editingId) {
-			setLessonUpdates((prev) => ({
-				...prev,
-				[editingId]: {
-					title: editTitle,
-					duration: editDuration,
-					isFree: editIsFree,
-				},
-			}))
+	const saveEdit = async () => {
+		if (!editingId) {
+			return
 		}
-		setEditingId(null)
+
+		const currentLesson = lessonList.find((lesson) => lesson.id === editingId)
+
+		setIsSaving(true)
+		setError('')
+		try {
+			await updateLesson(editingId, {
+				title: editTitle,
+				duration: editDuration,
+				isFree: editIsFree,
+				description: currentLesson?.description ?? '',
+			})
+			setEditingId(null)
+			setRefreshKey((prev) => prev + 1)
+		} catch (saveError) {
+			console.error('update lesson failed', saveError)
+			if (axios.isAxiosError(saveError)) {
+				const status = saveError.response?.status
+				const payload = saveError.response?.data as { message?: string; error?: string } | undefined
+				const detail = payload?.message || payload?.error || saveError.message
+
+				if (status === 403) {
+					setError(`Bạn không có quyền cập nhật bài học này (${status}). ${detail}`)
+				} else if (status === 400 || status === 422) {
+					setError(`Dữ liệu cập nhật chưa hợp lệ (${status}). ${detail}`)
+				} else {
+					setError(`Không thể cập nhật bài học (${status ?? 'network'}). ${detail}`)
+				}
+			} else {
+				setError('Không thể cập nhật bài học. Vui lòng thử lại.')
+			}
+		} finally {
+			setIsSaving(false)
+		}
 	}
 
-	const deleteLesson = (id: string) => {
-		setDeletedIds((prev) => {
-			const next = new Set(prev)
-			next.add(id)
-			return next
-		})
-		if (editingId === id) setEditingId(null)
-		if (expandedLessonId === id) setExpandedLessonId(null)
+	const handleDeleteLesson = async (id: string) => {
+		setIsSaving(true)
+		setError('')
+		try {
+			await deleteLesson(id)
+			if (editingId === id) setEditingId(null)
+			if (expandedLessonId === id) setExpandedLessonId(null)
+			setRefreshKey((prev) => prev + 1)
+		} catch (deleteError) {
+			console.error('delete lesson failed', deleteError)
+			setError('Không thể xóa bài học. Vui lòng thử lại.')
+		} finally {
+			setIsSaving(false)
+		}
 	}
 
 	const toggleLessonPreview = (id: string) => {
@@ -76,9 +177,7 @@ function LessonManage({ onBackToDashboard }: Props) {
 				<header className="teacher-header">
 					<div>
 						<h1 className="teacher-title">Quản lý bài học</h1>
-						<p className="teacher-subtitle">
-							{lessonList.length} bài học · {course.title}
-						</p>
+						<p className="teacher-subtitle">{lessonList.length} bài học · {course?.title ?? 'Chưa có khóa học'}</p>
 					</div>
 					<div className="teacher-toolbar">
 						<button className="teacher-btn ghost" onClick={onBackToDashboard}>
@@ -92,8 +191,9 @@ function LessonManage({ onBackToDashboard }: Props) {
 						className="teacher-select"
 						value={selectedCourseId}
 						onChange={(e) => setSelectedCourseId(e.target.value)}
+						disabled={teacherCourses.length === 0}
 					>
-						{COURSES.map((c) => (
+						{teacherCourses.map((c) => (
 							<option key={c.id} value={c.id}>
 								{c.title}
 							</option>
@@ -102,6 +202,8 @@ function LessonManage({ onBackToDashboard }: Props) {
 				</div>
 
 				<section className="teacher-panel">
+					{error && <div className="teacher-list-meta" style={{ marginBottom: 12, color: '#dc2626' }}>{error}</div>}
+					{isHydratingLessons && <div className="teacher-list-meta" style={{ marginBottom: 12 }}>Đang tải bài học từ backend...</div>}
 					<div className="teacher-panel-head">
 						<h3>Danh sách bài học</h3>
 						<span className="teacher-list-meta">
@@ -110,7 +212,7 @@ function LessonManage({ onBackToDashboard }: Props) {
 						</span>
 					</div>
 					{lessonList.length === 0 && (
-						<p className="teacher-empty">Không còn bài học nào.</p>
+						<p className="teacher-empty">Không có bài học nào cho giảng viên hiện tại.</p>
 					)}
 					<div className="teacher-list">
 						{lessonList.map((lesson, index) => (
@@ -147,8 +249,8 @@ function LessonManage({ onBackToDashboard }: Props) {
 										</div>
 									</div>
 									<div className="teacher-actions">
-										<button className="teacher-btn" onClick={saveEdit}>
-											Lưu
+										<button className="teacher-btn" onClick={() => void saveEdit()} disabled={isSaving}>
+											{isSaving ? 'Đang lưu...' : 'Lưu'}
 										</button>
 										<button
 											className="teacher-btn ghost"
@@ -199,7 +301,8 @@ function LessonManage({ onBackToDashboard }: Props) {
 										</button>
 										<button
 											className="teacher-action-btn teacher-action-btn-danger"
-											onClick={() => deleteLesson(lesson.id)}
+											onClick={() => void handleDeleteLesson(lesson.id)}
+											disabled={isSaving}
 										>
 											Xóa
 										</button>

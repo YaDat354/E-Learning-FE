@@ -1,13 +1,15 @@
 import { useState } from 'react'
 import type { Course } from '../../domain/index.ts'
-import '../admin/Dashboard.css'
+import type { User } from '../../domain/index.ts'
+import './Dashboard.css'
 
 type Props = {
+	user: User
 	onBackToDashboard: () => void
 	onCreated?: (course: Course) => void
 }
 
-function CreateCourse({ onBackToDashboard, onCreated }: Props) {
+function CreateCourse({ user, onBackToDashboard, onCreated }: Props) {
 	const [title, setTitle] = useState('')
 	const [description, setDescription] = useState('')
 	const [category, setCategory] = useState('Giao tiếp')
@@ -15,7 +17,7 @@ function CreateCourse({ onBackToDashboard, onCreated }: Props) {
 	const [price, setPrice] = useState(0)
 	const [originalPrice, setOriginalPrice] = useState(0)
 	const [duration, setDuration] = useState('')
-	const [instructor, setInstructor] = useState('')
+	const [instructor] = useState(user.name)
 
 	const categories = [
 		{ name: 'Giao tiếp', color: '#1066d6' },
@@ -61,77 +63,79 @@ function CreateCourse({ onBackToDashboard, onCreated }: Props) {
 	}
 
 	return (
-		<section className="admin-page">
-			<div className="admin-shell">
-				<header className="admin-header">
+		<section className="teacher-page">
+			<div className="teacher-shell">
+				<header className="teacher-header">
 					<div>
-						<h1 className="admin-title">Tạo khóa học mới</h1>
-						<p className="admin-subtitle">
+						<h1 className="teacher-title">Tạo khóa học mới</h1>
+						<p className="teacher-subtitle">
 							Điền thông tin chi tiết để tạo một khóa học mới
 						</p>
 					</div>
-					<div className="admin-toolbar">
-						<button className="admin-btn ghost" onClick={onBackToDashboard}>
+					<div className="teacher-toolbar">
+						<button className="teacher-btn ghost" onClick={onBackToDashboard}>
 							Quay lại
 						</button>
 					</div>
 				</header>
 
-				<section className="admin-panel">
+				<section className="teacher-panel">
 					<h3>Thông tin khóa học</h3>
 
 					<div
-						className="admin-form-grid"
+						className="teacher-toolbar"
 						style={{ gridTemplateColumns: '1fr 1fr' }}
 					>
 						<div>
-							<label className="admin-form-label">
+							<label className="teacher-list-meta">
 								Tên khóa học <span style={{ color: '#ef4444' }}>*</span>
 							</label>
 							<input
-								className="admin-input admin-input-full"
+								className="teacher-input"
 								value={title}
 								onChange={(e) => setTitle(e.target.value)}
 								placeholder="VD: Tiếng Anh giao tiếp..."
+								style={{ width: '100%' }}
 							/>
 						</div>
 						<div>
-							<label className="admin-form-label">
-								Giảng viên <span style={{ color: '#ef4444' }}>*</span>
+							<label className="teacher-list-meta">
+								Giảng viên
 							</label>
 							<input
-								className="admin-input admin-input-full"
+								className="teacher-input"
 								value={instructor}
-								onChange={(e) => setInstructor(e.target.value)}
-								placeholder="VD: Cô Mai Anh"
+								readOnly
+								style={{ width: '100%', opacity: 0.8 }}
 							/>
 						</div>
 					</div>
 
 					<div>
-						<label className="admin-form-label">
+						<label className="teacher-list-meta">
 							Mô tả chi tiết <span style={{ color: '#ef4444' }}>*</span>
 						</label>
 						<textarea
-							className="admin-input admin-input-full"
+							className="teacher-input"
 							value={description}
 							onChange={(e) => setDescription(e.target.value)}
 							placeholder="Mô tả về nội dung khóa học..."
 							rows={4}
-							style={{ minHeight: 100, fontFamily: 'inherit' }}
+							style={{ minHeight: 100, fontFamily: 'inherit', width: '100%' }}
 						></textarea>
 					</div>
 
 					<div
-						className="admin-form-grid"
+						className="teacher-toolbar"
 						style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}
 					>
 						<div>
-							<label className="admin-form-label">Danh mục</label>
+							<label className="teacher-list-meta">Danh mục</label>
 							<select
-								className="admin-select admin-input-full"
+								className="teacher-select"
 								value={category}
 								onChange={(e) => setCategory(e.target.value)}
+								style={{ width: '100%' }}
 							>
 								{categories.map((c) => (
 									<option key={c.name} value={c.name}>
@@ -141,13 +145,14 @@ function CreateCourse({ onBackToDashboard, onCreated }: Props) {
 							</select>
 						</div>
 						<div>
-							<label className="admin-form-label">Trình độ</label>
+							<label className="teacher-list-meta">Trình độ</label>
 							<select
-								className="admin-select admin-input-full"
+								className="teacher-select"
 								value={level}
 								onChange={(e) =>
 									setLevel(e.target.value as Course['level'])
 								}
+								style={{ width: '100%' }}
 							>
 								<option value="Cơ bản">Cơ bản</option>
 								<option value="Trung cấp">Trung cấp</option>
@@ -155,46 +160,49 @@ function CreateCourse({ onBackToDashboard, onCreated }: Props) {
 							</select>
 						</div>
 						<div>
-							<label className="admin-form-label">Thời lượng</label>
+							<label className="teacher-list-meta">Thời lượng</label>
 							<input
-								className="admin-input admin-input-full"
+								className="teacher-input"
 								value={duration}
 								onChange={(e) => setDuration(e.target.value)}
 								placeholder="VD: 24 giờ"
+								style={{ width: '100%' }}
 							/>
 						</div>
 					</div>
 
-					<div className="admin-form-grid">
+					<div className="teacher-toolbar">
 						<div>
-							<label className="admin-form-label">Giá hiện tại (₫)</label>
+							<label className="teacher-list-meta">Giá hiện tại (₫)</label>
 							<input
-								className="admin-input admin-input-full"
+								className="teacher-input"
 								type="number"
 								value={price}
 								onChange={(e) => setPrice(Number(e.target.value))}
 								placeholder="0"
+								style={{ width: '100%' }}
 							/>
 						</div>
 						<div>
-							<label className="admin-form-label">Giá gốc (₫)</label>
+							<label className="teacher-list-meta">Giá gốc (₫)</label>
 							<input
-								className="admin-input admin-input-full"
+								className="teacher-input"
 								type="number"
 								value={originalPrice}
 								onChange={(e) =>
 									setOriginalPrice(Number(e.target.value))
 								}
 								placeholder="0"
+								style={{ width: '100%' }}
 							/>
 						</div>
 					</div>
 
-					<div className="admin-actions" style={{ marginTop: 20 }}>
-						<button className="admin-btn" onClick={handleCreate}>
+					<div className="teacher-toolbar" style={{ marginTop: 20 }}>
+						<button className="teacher-btn" onClick={handleCreate}>
 							Tạo khóa học
 						</button>
-						<button className="admin-btn ghost" onClick={onBackToDashboard}>
+						<button className="teacher-btn ghost" onClick={onBackToDashboard}>
 							Hủy
 						</button>
 					</div>

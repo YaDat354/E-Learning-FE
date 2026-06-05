@@ -1,42 +1,74 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { COURSES } from '../../domain/index.ts'
+import type { User } from '../../domain/index.ts'
+import { getTeacherCourses } from '../../utils/teacher.ts'
+import { fetchTeachingAssignmentsOverview, type TeachingAssignmentOverviewItem } from '../../services/teacherService.ts'
 import './AssignmentManage.css'
 
 type Props = {
+	user: User
+	teacherCourseIds: string[]
 	onBackToDashboard: () => void
 }
 
-const ASSIGNMENTS = COURSES.flatMap((course, courseIndex) =>
-	course.lessons.map((lesson, lessonIndex) => ({
-		id: `${course.id}-${lesson.id}`,
-		title: `Bài tập ${lessonIndex + 1}: ${lesson.title}`,
-		courseTitle: course.title,
-		categoryColor: course.categoryColor,
-		category: course.category,
-		dueDate: lessonIndex % 2 === 0 ? '10/04/2026' : '17/04/2026',
-		submitted: Math.floor(
-			course.studentCount * (0.4 + ((courseIndex + lessonIndex) % 3) * 0.1),
-		),
-		total: course.studentCount,
-	})),
-)
+function AssignmentManage({ user, teacherCourseIds, onBackToDashboard }: Props) {
+	const teacherCourses = getTeacherCourses(COURSES, user, teacherCourseIds)
+	const [overviewAssignments, setOverviewAssignments] = useState<TeachingAssignmentOverviewItem[]>([])
+	const [isLoadingOverview, setIsLoadingOverview] = useState(true)
+	const [overviewError, setOverviewError] = useState('')
 
-function AssignmentManage({ onBackToDashboard }: Props) {
-	const [gradedIds, setGradedIds] = useState<Set<string>>(new Set())
+	useEffect(() => {
+		let mounted = true
 
-	const toggleGraded = (id: string) => {
-		setGradedIds((prev) => {
-			const next = new Set(prev)
-			if (next.has(id)) {
-				next.delete(id)
-			} else {
-				next.add(id)
+		const loadOverview = async () => {
+			setIsLoadingOverview(true)
+			setOverviewError('')
+
+			try {
+				const rows = await fetchTeachingAssignmentsOverview()
+				if (mounted) {
+					setOverviewAssignments(rows)
+				}
+			} catch (error) {
+				console.error('load teaching assignment overview failed', error)
+				if (mounted) {
+					setOverviewAssignments([])
+					setOverviewError('Không tải được tổng quan bài tập từ backend. Đang hiển thị dữ liệu ước tính.')
+				}
+			} finally {
+				if (mounted) {
+					setIsLoadingOverview(false)
+				}
 			}
-			return next
-		})
-	}
+		}
 
-	const gradedCount = gradedIds.size
+		void loadOverview()
+
+		return () => {
+			mounted = false
+		}
+	}, [teacherCourseIds.join('|'), user.email])
+
+	const assignments = useMemo(() => overviewAssignments.map((item) => {
+		const matchedCourse = teacherCourses.find((course) => course.id === item.courseId)
+
+		return {
+			id: item.assignmentId,
+			title: item.assignmentTitle,
+			courseTitle: item.courseTitle,
+			categoryColor: matchedCourse?.categoryColor ?? '#0d9488',
+			category: matchedCourse?.category ?? 'Khóa học',
+			dueDate: item.dueDate ? new Date(item.dueDate).toLocaleDateString('vi-VN') : 'Chưa có hạn nộp',
+			submitted: item.submittedCount,
+			total: Math.max(item.totalStudents, 1),
+			gradedCount: item.gradedCount,
+		}
+	}), [overviewAssignments, teacherCourses])
+
+	const gradedCount = useMemo(
+		() => assignments.reduce((sum, item) => sum + Math.min(item.gradedCount, item.submitted), 0),
+		[assignments],
+	)
 
 	return (
 		<section className="teacher-page">
@@ -45,8 +77,7 @@ function AssignmentManage({ onBackToDashboard }: Props) {
 					<div>
 						<h1 className="teacher-title">Quản lý Bài tập</h1>
 						<p className="teacher-subtitle">
-							{ASSIGNMENTS.length} bài tập · {gradedCount} đã chấm ·{' '}
-							{ASSIGNMENTS.length - gradedCount} chưa chấm
+							{assignments.length} bài tập · {gradedCount} lượt chấm
 						</p>
 					</div>
 					<div className="teacher-toolbar">
@@ -57,6 +88,13 @@ function AssignmentManage({ onBackToDashboard }: Props) {
 				</header>
 
 				<section className="teacher-panel">
+					{isLoadingOverview && <div className="teacher-list-meta" style={{ marginBottom: 10 }}>Đang tải tổng quan bài tập từ backend...</div>}
+					{overviewError && <div className="teacher-list-meta" style={{ marginBottom: 10, color: '#dc2626' }}>{overviewError}</div>}
+					{!isLoadingOverview && !overviewError && overviewAssignments.length > 0 && (
+						<div className="teacher-list-meta" style={{ marginBottom: 10 }}>
+							Dữ liệu đang lấy trực tiếp từ API tổng quan bài tập của backend.
+						</div>
+					)}
 					<table className="teacher-table">
 						<thead>
 							<tr>
@@ -70,16 +108,20 @@ function AssignmentManage({ onBackToDashboard }: Props) {
 							</tr>
 						</thead>
 						<tbody>
-							{ASSIGNMENTS.map((a) => {
-								const isGraded = gradedIds.has(a.id)
-								const ratio = Math.round((a.submitted / a.total) * 100)
+							{!isLoadingOverview && assignments.length === 0 && (
+								<tr>
+									<td colSpan={7} className="teacher-list-meta">Chưa có dữ liệu bài tập từ backend cho giảng viên hiện tại.</td>
+								</tr>
+							)}
+							{assignments.map((a) => {
+								const ratio = Math.round((a.submitted / Math.max(a.total, 1)) * 100)
 								return (
 									<tr
 										key={a.id}
-										style={isGraded ? { opacity: 0.6 } : undefined}
 									>
 										<td>
 											<span className="teacher-list-title">{a.title}</span>
+											<div className="teacher-list-meta">{a.courseTitle}</div>
 										</td>
 										<td>
 											<span
@@ -106,7 +148,7 @@ function AssignmentManage({ onBackToDashboard }: Props) {
 											</span>
 										</td>
 										<td>
-											{isGraded ? (
+											{a.gradedCount >= a.submitted ? (
 												<span className="teacher-badge teacher-badge-free">
 													Đã chấm
 												</span>
@@ -117,14 +159,7 @@ function AssignmentManage({ onBackToDashboard }: Props) {
 											)}
 										</td>
 										<td>
-											<div className="teacher-actions">
-												<button
-													className={`teacher-action-btn ${isGraded ? 'teacher-action-btn-active' : ''}`}
-													onClick={() => toggleGraded(a.id)}
-												>
-													{isGraded ? 'Bỏ chấm' : 'Chấm điểm'}
-												</button>
-											</div>
+											<span className="teacher-list-meta">Theo dữ liệu backend</span>
 										</td>
 									</tr>
 								)

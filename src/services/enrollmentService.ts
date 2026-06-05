@@ -162,6 +162,7 @@ export async function enrollCourse(courseId: string): Promise<void> {
 
 export async function updateLessonProgress(lessonId: string, payload: LessonProgressPayload): Promise<void> {
   await api.patch(`/me/lessons/${encodeURIComponent(lessonId)}/progress`, {
+    lastPositionSec: payload.currentSecond ?? 0,
     currentSecond: payload.currentSecond ?? 0,
     isCompleted: payload.isCompleted ?? false,
   })

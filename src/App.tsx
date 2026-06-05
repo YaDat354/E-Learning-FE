@@ -4,8 +4,10 @@ import type { Course, User } from './domain/index.ts'
 import { COURSES, createCourse, fetchMe, initializeDomainData } from './domain/index.ts'
 import { buildPath, parsePath, type Route } from './routes/appRoutes.ts'
 import { inferRoleFromEmail } from './utils/auth.ts'
+import { hasExplicitTeacherOwnership } from './utils/teacher.ts'
 import { login as loginApi, logout as logoutApi } from './services/authService.ts'
 import { enrollCourse as enrollCourseApi, fetchMyCourses } from './services/enrollmentService.ts'
+import { fetchMyTeachingCourses } from './services/teacherService.ts'
 import HomePage from './pages/HomePage.tsx'
 import AuthPage from './pages/AuthPage.tsx'
 import CourseDetailPage from './pages/CourseDetailPage.tsx'
@@ -16,6 +18,7 @@ import StudentCourseDetail from './pages/student/CourseDetail.tsx'
 import StudentLearnPage from './pages/student/LearnPage.tsx'
 import StudentProfile from './pages/student/Profile.tsx'
 import TeacherDashboard from './pages/teacher/Dashboard.tsx'
+import TeacherProfile from './pages/teacher/Profile.tsx'
 import TeacherCourseManage from './pages/teacher/CourseManage.tsx'
 import TeacherCreateCourse from './pages/teacher/CreateCourse.tsx'
 import TeacherLessonManage from './pages/teacher/LessonManage.tsx'
@@ -109,7 +112,16 @@ function resolveAuthUser(payload: unknown, fallbackEmail: string): User {
     normalizeRole(nestedData.roleName) ??
     inferRoleFromEmail(email)
 
-  return { name, email, role }
+  const id =
+    (typeof nestedUser.id === 'string' && nestedUser.id.trim().length > 0 ? nestedUser.id : null)
+    ?? (typeof nestedUser._id === 'string' && nestedUser._id.trim().length > 0 ? nestedUser._id : null)
+    ?? (typeof source.id === 'string' && source.id.trim().length > 0 ? source.id : null)
+    ?? (typeof source._id === 'string' && source._id.trim().length > 0 ? source._id : null)
+    ?? (typeof nestedData.id === 'string' && nestedData.id.trim().length > 0 ? nestedData.id : null)
+    ?? (typeof nestedData._id === 'string' && nestedData._id.trim().length > 0 ? nestedData._id : null)
+    ?? undefined
+
+  return { id, name, email, role }
 }
 
 function readPersistedStudentCourseIds(): string[] {
@@ -133,10 +145,28 @@ function persistStudentCourseIds(courseIds: string[]) {
   localStorage.setItem(STUDENT_COURSE_IDS_KEY, JSON.stringify(Array.from(new Set(courseIds))))
 }
 
+function mergeCoursesFromTeacherScope(scopedCourses: Course[]) {
+  for (const scopedCourse of scopedCourses) {
+    const index = COURSES.findIndex((course) => course.id === scopedCourse.id)
+
+    if (index >= 0) {
+      COURSES[index] = {
+        ...COURSES[index],
+        ...scopedCourse,
+        lessons: scopedCourse.lessons.length > 0 ? scopedCourse.lessons : COURSES[index].lessons,
+      }
+      continue
+    }
+
+    COURSES.unshift(scopedCourse)
+  }
+}
+
 function App() {
   const [route, setRoute] = useState<Route>(() => parsePath(window.location.pathname))
   const [user, setUser] = useState<User | null>(null)
   const [studentCourseIds, setStudentCourseIds] = useState<string[]>(() => readPersistedStudentCourseIds())
+  const [teacherCourseIds, setTeacherCourseIds] = useState<string[]>([])
   const [redirectAfterAuth, setRedirectAfterAuth] = useState<Route | null>(null)
   const [isBootstrapped, setIsBootstrapped] = useState(false)
 
@@ -154,6 +184,28 @@ function App() {
         setStudentCourseIds(fallbackIds)
       }
       return fallbackIds
+    }
+  }
+
+  const syncTeacherCourses = async (applyState = true) => {
+    try {
+      const scopedCourses = await fetchMyTeachingCourses()
+      const explicitOwnedCourses = user?.role === 'teacher'
+        ? scopedCourses.filter((course) => hasExplicitTeacherOwnership(course, user))
+        : []
+      const effectiveCourses = explicitOwnedCourses.length > 0 ? explicitOwnedCourses : scopedCourses
+
+      mergeCoursesFromTeacherScope(effectiveCourses)
+      const ids = Array.from(new Set(effectiveCourses.map((course) => course.id).filter((id) => id.length > 0)))
+      if (applyState) {
+        setTeacherCourseIds(ids)
+      }
+      return ids
+    } catch {
+      if (applyState) {
+        setTeacherCourseIds([])
+      }
+      return []
     }
   }
 
@@ -177,6 +229,7 @@ function App() {
         if (mounted) {
           setUser(null)
           setStudentCourseIds([])
+          setTeacherCourseIds([])
           setRedirectAfterAuth(null)
           navigate({ view: 'home' }, true)
           setIsBootstrapped(true)
@@ -194,8 +247,13 @@ function App() {
             setUser(nextUser)
             if (nextUser.role === 'student') {
               await syncStudentCourses(mounted)
+              setTeacherCourseIds([])
+            } else if (nextUser.role === 'teacher') {
+              await syncTeacherCourses(mounted)
+              setStudentCourseIds([])
             } else {
               setStudentCourseIds([])
+              setTeacherCourseIds([])
             }
           }
         } catch (error) {
@@ -207,16 +265,19 @@ function App() {
             if (mounted) {
               setUser(null)
               setStudentCourseIds([])
+              setTeacherCourseIds([])
             }
           } else if (mounted) {
             setUser(null)
             setStudentCourseIds([])
+            setTeacherCourseIds([])
             setRedirectAfterAuth(null)
             navigate({ view: 'home' }, true)
           }
         }
       } else if (mounted) {
         setStudentCourseIds([])
+        setTeacherCourseIds([])
       }
 
       if (mounted) {
@@ -253,6 +314,14 @@ function App() {
     void syncStudentCourses()
   }, [isBootstrapped, user?.role])
 
+  useEffect(() => {
+    if (!isBootstrapped || user?.role !== 'teacher') {
+      return
+    }
+
+    void syncTeacherCourses()
+  }, [isBootstrapped, user?.role])
+
   const effectiveRoute = useMemo<Route>(() => {
     if (route.view === 'course' && !user) {
       return { view: 'auth' }
@@ -282,8 +351,13 @@ function App() {
     setUser(authUser)
     if (authUser.role === 'student') {
       await syncStudentCourses()
+      setTeacherCourseIds([])
+    } else if (authUser.role === 'teacher') {
+      await syncTeacherCourses()
+      setStudentCourseIds([])
     } else {
       setStudentCourseIds([])
+      setTeacherCourseIds([])
     }
     const defaultRoute = defaultRouteByRole(authUser.role)
     const nextRoute = redirectAfterAuth ?? ((route.view === 'lesson' || route.view === 'course') ? route : defaultRoute)
@@ -295,6 +369,7 @@ function App() {
     logoutApi()
     setUser(null)
     setStudentCourseIds([])
+    setTeacherCourseIds([])
     setRedirectAfterAuth(null)
     navigate({ view: 'home' })
   }
@@ -320,6 +395,7 @@ function App() {
   const handleTeacherCourseCreated = async (course: Course) => {
     try {
       await createCourse(course)
+      await syncTeacherCourses()
     } catch (error) {
       console.error('create course failed', error)
       alert('Không thể tạo khóa học. Vui lòng kiểm tra backend.')
@@ -391,6 +467,8 @@ function App() {
       return (
         <TeacherDashboard
           user={user}
+          teacherCourseIds={teacherCourseIds}
+          onOpenProfile={() => navigate({ view: 'teacher-profile' })}
           onGoCourses={() => navigate({ view: 'teacher-courses' })}
           onGoCreateCourse={() => navigate({ view: 'teacher-create-course' })}
           onGoLessons={() => navigate({ view: 'teacher-lessons' })}
@@ -471,6 +549,7 @@ function App() {
     return (
       <StudentProfile
         user={user}
+        onUserUpdated={setUser}
         onLogout={handleLogout}
         onBackToDashboard={() => navigate({ view: 'student-dashboard' })}
       />
@@ -485,11 +564,28 @@ function App() {
     return (
       <TeacherDashboard
         user={user}
+        teacherCourseIds={teacherCourseIds}
+        onOpenProfile={() => navigate({ view: 'teacher-profile' })}
         onGoCourses={() => navigate({ view: 'teacher-courses' })}
         onGoCreateCourse={() => navigate({ view: 'teacher-create-course' })}
         onGoLessons={() => navigate({ view: 'teacher-lessons' })}
         onGoQuizzes={() => navigate({ view: 'teacher-quizzes' })}
         onGoAssignments={() => navigate({ view: 'teacher-assignments' })}
+        onLogout={handleLogout}
+      />
+    )
+  }
+
+  if (effectiveRoute.view === 'teacher-profile') {
+    if (!user || user.role !== 'teacher') {
+      return <AuthPage onLogin={handleLogin} onBack={goToHome} />
+    }
+
+    return (
+      <TeacherProfile
+        user={user}
+        onUserUpdated={setUser}
+        onBackToDashboard={() => navigate({ view: 'teacher-dashboard' })}
         onLogout={handleLogout}
       />
     )
@@ -502,6 +598,8 @@ function App() {
 
     return (
       <TeacherCourseManage
+        user={user}
+        teacherCourseIds={teacherCourseIds}
         onBackToDashboard={() => navigate({ view: 'teacher-dashboard' })}
         onGoCreateCourse={() => navigate({ view: 'teacher-create-course' })}
         onGoLessons={() => navigate({ view: 'teacher-lessons' })}
@@ -516,6 +614,7 @@ function App() {
 
     return (
       <TeacherCreateCourse
+        user={user}
         onCreated={handleTeacherCourseCreated}
         onBackToDashboard={() => navigate({ view: 'teacher-courses' })}
       />
@@ -529,6 +628,8 @@ function App() {
 
     return (
       <TeacherLessonManage
+        user={user}
+        teacherCourseIds={teacherCourseIds}
         onBackToDashboard={() => navigate({ view: 'teacher-dashboard' })}
       />
     )
@@ -541,6 +642,8 @@ function App() {
 
     return (
       <TeacherQuizManage
+        user={user}
+        teacherCourseIds={teacherCourseIds}
         onBackToDashboard={() => navigate({ view: 'teacher-dashboard' })}
       />
     )
@@ -553,6 +656,8 @@ function App() {
 
     return (
       <TeacherAssignmentManage
+        user={user}
+        teacherCourseIds={teacherCourseIds}
         onBackToDashboard={() => navigate({ view: 'teacher-dashboard' })}
       />
     )
