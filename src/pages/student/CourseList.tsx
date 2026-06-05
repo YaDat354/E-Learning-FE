@@ -3,23 +3,29 @@ import { COURSES } from '../../domain/index.ts'
 import './CourseList.css'
 
 type CourseListProps = {
+	myCourseIds: string[]
 	onOpenCourse: (courseId: string) => void
 	onBackToDashboard: () => void
 	onLogout: () => void
 }
 
-function CourseList({ onOpenCourse, onBackToDashboard, onLogout }: CourseListProps) {
+function CourseList({ myCourseIds, onOpenCourse, onBackToDashboard, onLogout }: CourseListProps) {
 	const [query, setQuery] = useState('')
+	const [viewMode, setViewMode] = useState<'all' | 'my'>('my')
 	const [level, setLevel] = useState<'all' | 'Cơ bản' | 'Trung cấp' | 'Nâng cao'>('all')
 
 	const courses = useMemo(() => {
-		return COURSES.filter((course) => {
+		const sourceCourses = viewMode === 'my'
+			? COURSES.filter((course) => myCourseIds.includes(course.id))
+			: COURSES
+
+		return sourceCourses.filter((course) => {
 			const title = typeof course.title === 'string' ? course.title : ''
 			const matchesQuery = title.toLowerCase().includes(query.toLowerCase())
 			const matchesLevel = level === 'all' ? true : course.level === level
 			return matchesQuery && matchesLevel
 		})
-	}, [query, level])
+	}, [query, level, myCourseIds, viewMode])
 
 	return (
 		<section className="student-page">
@@ -27,13 +33,32 @@ function CourseList({ onOpenCourse, onBackToDashboard, onLogout }: CourseListPro
 				<header className="student-header">
 					<div>
 						<h1 className="student-title">Khóa học dành cho học viên</h1>
-						<p className="student-subtitle">Lọc nhanh để chọn lộ trình phù hợp</p>
+						<p className="student-subtitle">
+							{viewMode === 'my'
+								? `Bạn đang có ${myCourseIds.length} khóa học đã đăng ký`
+								: 'Lọc nhanh để chọn lộ trình phù hợp'}
+						</p>
 					</div>
 					<div className="student-toolbar">
 						<button className="student-btn ghost" onClick={onBackToDashboard}>Về Dashboard</button>
 						<button className="student-btn danger" onClick={onLogout}>Đăng xuất</button>
 					</div>
 				</header>
+
+				<div className="student-segment">
+					<button
+						className={`student-btn ghost ${viewMode === 'my' ? 'active' : ''}`}
+						onClick={() => setViewMode('my')}
+					>
+						Khóa học của tôi
+					</button>
+					<button
+						className={`student-btn ghost ${viewMode === 'all' ? 'active' : ''}`}
+						onClick={() => setViewMode('all')}
+					>
+						Tất cả khóa học
+					</button>
+				</div>
 
 				<div className="student-toolbar">
 					<input
@@ -57,7 +82,11 @@ function CourseList({ onOpenCourse, onBackToDashboard, onLogout }: CourseListPro
 				<div className="student-list">
 					{courses.length === 0 && (
 						<div className="student-list-item">
-							<div className="student-list-meta">Chưa có khóa học phù hợp hoặc dữ liệu khóa học chưa sẵn sàng.</div>
+							<div className="student-list-meta">
+								{viewMode === 'my'
+									? 'Bạn chưa có khóa học nào trong danh sách của tôi.'
+									: 'Chưa có khóa học phù hợp hoặc dữ liệu khóa học chưa sẵn sàng.'}
+							</div>
 						</div>
 					)}
 					{courses.map((course) => (

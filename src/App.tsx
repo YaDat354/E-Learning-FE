@@ -5,6 +5,7 @@ import { COURSES, createCourse, fetchMe, initializeDomainData } from './domain/i
 import { buildPath, parsePath, type Route } from './routes/appRoutes.ts'
 import { inferRoleFromEmail } from './utils/auth.ts'
 import { login as loginApi, logout as logoutApi } from './services/authService.ts'
+import { enrollCourse as enrollCourseApi, fetchMyCourses } from './services/enrollmentService.ts'
 import HomePage from './pages/HomePage.tsx'
 import AuthPage from './pages/AuthPage.tsx'
 import CourseDetailPage from './pages/CourseDetailPage.tsx'
@@ -24,6 +25,8 @@ import AdminDashboard from './pages/admin/Dashboard.tsx'
 import AdminUserManage from './pages/admin/UserManage.tsx'
 import AdminCourseManage from './pages/admin/CourseManage.tsx'
 import AdminLayout from './pages/admin/AdminLayout.tsx'
+
+const STUDENT_COURSE_IDS_KEY = 'studentCourseIds'
 
 function defaultRouteByRole(role: User['role']): Route {
   if (role === 'student') {
@@ -109,11 +112,50 @@ function resolveAuthUser(payload: unknown, fallbackEmail: string): User {
   return { name, email, role }
 }
 
+function readPersistedStudentCourseIds(): string[] {
+  const raw = localStorage.getItem(STUDENT_COURSE_IDS_KEY)
+
+  if (!raw) {
+    return []
+  }
+
+  try {
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed)
+      ? parsed.filter((item): item is string => typeof item === 'string').map((item) => item.trim()).filter((item) => item.length > 0)
+      : []
+  } catch {
+    return []
+  }
+}
+
+function persistStudentCourseIds(courseIds: string[]) {
+  localStorage.setItem(STUDENT_COURSE_IDS_KEY, JSON.stringify(Array.from(new Set(courseIds))))
+}
+
 function App() {
   const [route, setRoute] = useState<Route>(() => parsePath(window.location.pathname))
   const [user, setUser] = useState<User | null>(null)
+  const [studentCourseIds, setStudentCourseIds] = useState<string[]>(() => readPersistedStudentCourseIds())
   const [redirectAfterAuth, setRedirectAfterAuth] = useState<Route | null>(null)
   const [isBootstrapped, setIsBootstrapped] = useState(false)
+
+  const syncStudentCourses = async (applyState = true) => {
+    try {
+      const ids = await fetchMyCourses()
+      if (applyState) {
+        setStudentCourseIds(ids)
+      }
+      persistStudentCourseIds(ids)
+      return ids
+    } catch {
+      const fallbackIds = readPersistedStudentCourseIds()
+      if (applyState) {
+        setStudentCourseIds(fallbackIds)
+      }
+      return fallbackIds
+    }
+  }
 
   const navigate = (nextRoute: Route, replace = false) => {
     const nextPath = buildPath(nextRoute)
@@ -129,14 +171,32 @@ function App() {
     let mounted = true
 
     const bootstrap = async () => {
-      await initializeDomainData()
+      const backendAvailable = await initializeDomainData()
+
+      if (!backendAvailable) {
+        if (mounted) {
+          setUser(null)
+          setStudentCourseIds([])
+          setRedirectAfterAuth(null)
+          navigate({ view: 'home' }, true)
+          setIsBootstrapped(true)
+        }
+        return
+      }
 
       const persistedToken = localStorage.getItem('accessToken')
       if (persistedToken) {
         try {
           const apiUser = await fetchMe()
+          const nextUser = resolveAuthUser(apiUser, 'user@example.com')
+
           if (mounted) {
-            setUser(resolveAuthUser(apiUser, 'user@example.com'))
+            setUser(nextUser)
+            if (nextUser.role === 'student') {
+              await syncStudentCourses(mounted)
+            } else {
+              setStudentCourseIds([])
+            }
           }
         } catch (error) {
           const status = axios.isAxiosError(error) ? error.response?.status : undefined
@@ -146,16 +206,17 @@ function App() {
             logoutApi()
             if (mounted) {
               setUser(null)
+              setStudentCourseIds([])
             }
           } else if (mounted) {
-            // Keep token for transient/network failures so refresh does not force logout.
-            setUser({
-              name: 'Học viên',
-              email: 'user@example.com',
-              role: 'student',
-            })
+            setUser(null)
+            setStudentCourseIds([])
+            setRedirectAfterAuth(null)
+            navigate({ view: 'home' }, true)
           }
         }
+      } else if (mounted) {
+        setStudentCourseIds([])
       }
 
       if (mounted) {
@@ -184,6 +245,14 @@ function App() {
     }
   }, [])
 
+  useEffect(() => {
+    if (!isBootstrapped || user?.role !== 'student') {
+      return
+    }
+
+    void syncStudentCourses()
+  }, [isBootstrapped, user?.role])
+
   const effectiveRoute = useMemo<Route>(() => {
     if (route.view === 'course' && !user) {
       return { view: 'auth' }
@@ -211,6 +280,11 @@ function App() {
     const authUser = resolveAuthUser(apiUser ?? authData, normalizedEmail)
 
     setUser(authUser)
+    if (authUser.role === 'student') {
+      await syncStudentCourses()
+    } else {
+      setStudentCourseIds([])
+    }
     const defaultRoute = defaultRouteByRole(authUser.role)
     const nextRoute = redirectAfterAuth ?? ((route.view === 'lesson' || route.view === 'course') ? route : defaultRoute)
     setRedirectAfterAuth(null)
@@ -220,8 +294,27 @@ function App() {
   const handleLogout = () => {
     logoutApi()
     setUser(null)
+    setStudentCourseIds([])
     setRedirectAfterAuth(null)
     navigate({ view: 'home' })
+  }
+
+  const handleEnrollCourse = async (courseId: string) => {
+    if (!user || user.role !== 'student') {
+      return false
+    }
+
+    try {
+      await enrollCourseApi(courseId)
+      const nextIds = studentCourseIds.includes(courseId) ? studentCourseIds : [...studentCourseIds, courseId]
+      setStudentCourseIds(nextIds)
+      persistStudentCourseIds(nextIds)
+      return true
+    } catch (error) {
+      console.error('enroll course failed', error)
+      alert('Không thể đăng ký khóa học. Vui lòng thử lại.')
+      return false
+    }
   }
 
   const handleTeacherCourseCreated = async (course: Course) => {
@@ -236,6 +329,13 @@ function App() {
   const goToLesson = (courseId: string, lessonId: string) => {
     const course = COURSES.find(c => c.id === courseId)
     const lesson = course?.lessons.find(l => l.id === lessonId)
+
+    if (user?.role === 'student' && !studentCourseIds.includes(courseId) && !lesson?.isFree) {
+      alert('Bạn chưa đăng ký khóa học này. Vui lòng vào "Khóa học của tôi" để học tiếp.')
+      navigate({ view: 'student-courses' })
+      return
+    }
+
     if (!user && lesson && !lesson.isFree) {
       setRedirectAfterAuth({ view: 'lesson', courseId, lessonId })
       navigate({ view: 'auth' })
@@ -277,6 +377,7 @@ function App() {
       return (
         <StudentDashboard
           user={user}
+          myCourseIds={studentCourseIds}
           onOpenCourse={goToCourse}
           onOpenLesson={goToLesson}
           onOpenCourseList={() => navigate({ view: 'student-courses' })}
@@ -337,6 +438,7 @@ function App() {
     return (
       <StudentDashboard
         user={user}
+        myCourseIds={studentCourseIds}
         onOpenCourse={goToCourse}
         onOpenLesson={goToLesson}
         onOpenCourseList={() => navigate({ view: 'student-courses' })}
@@ -353,6 +455,7 @@ function App() {
 
     return (
       <StudentCourseList
+        myCourseIds={studentCourseIds}
         onOpenCourse={goToCourse}
         onBackToDashboard={() => navigate({ view: 'student-dashboard' })}
         onLogout={handleLogout}
@@ -526,6 +629,8 @@ function App() {
         <StudentCourseDetail
           courseId={effectiveRoute.courseId}
           user={user}
+          isEnrolled={studentCourseIds.includes(effectiveRoute.courseId)}
+          onEnrollCourse={handleEnrollCourse}
           onGoAuth={goToAuth}
           onBack={() => navigate({ view: 'student-courses' })}
           onGoToLesson={goToLesson}
@@ -537,6 +642,8 @@ function App() {
       <CourseDetailPage
         courseId={effectiveRoute.courseId}
         user={user}
+        isEnrolled={true}
+        onEnrollCourse={handleEnrollCourse}
         onGoAuth={goToAuth}
         onBack={goToHome}
         onGoToLesson={goToLesson}

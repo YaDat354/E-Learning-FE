@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
+import axios from 'axios'
 import { ROLE_LABELS, fetchLessonComments } from '../domain/index.ts'
 import type { Comment, Course, TranscriptLine, User } from '../domain/index.ts'
 import { fetchCourseDetail, fetchLessonDetail } from '../services/courseService.ts'
+import { updateLessonProgress } from '../services/enrollmentService.ts'
 import VideoPlayer from '../components/course/VideoPlayer.tsx'
 import QuizPanel from '../components/course/QuizPanel.tsx'
 import AssignmentPanel from '../components/course/AssignmentPanel.tsx'
@@ -23,6 +25,7 @@ function LessonPage({ courseId, lessonId, user, onBack, onGoToLesson, onGoAuth }
   const [activeTab, setActiveTab] = useState<Tab>('overview')
   const [course, setCourse] = useState<Course | null>(null)
   const [isCourseLoading, setIsCourseLoading] = useState(true)
+  const [error, setError] = useState('')
   const [comments, setComments] = useState<Comment[]>([])
 
   const lesson = course?.lessons.find((l) => l.id === lessonId)
@@ -32,6 +35,7 @@ function LessonPage({ courseId, lessonId, user, onBack, onGoToLesson, onGoAuth }
 
     const loadCourse = async () => {
       setIsCourseLoading(true)
+      setError('')
       try {
         const nextCourse = await fetchCourseDetail(courseId)
         let nextLesson = null
@@ -39,6 +43,10 @@ function LessonPage({ courseId, lessonId, user, onBack, onGoToLesson, onGoAuth }
         try {
           nextLesson = await fetchLessonDetail(courseId, lessonId)
         } catch (lessonError) {
+          if (axios.isAxiosError(lessonError) && lessonError.response?.status === 403) {
+            throw lessonError
+          }
+
           console.warn('load lesson detail failed', lessonError)
         }
 
@@ -55,6 +63,11 @@ function LessonPage({ courseId, lessonId, user, onBack, onGoToLesson, onGoAuth }
       } catch (error) {
         console.error('load lesson course detail failed', error)
         if (mounted) {
+          if (axios.isAxiosError(error) && error.response?.status === 403) {
+            setError('Bạn chưa đăng ký khóa học này')
+          } else {
+            setError('Không thể tải bài học từ backend.')
+          }
           setCourse(null)
         }
       } finally {
@@ -123,11 +136,44 @@ function LessonPage({ courseId, lessonId, user, onBack, onGoToLesson, onGoAuth }
     }
   }, [isCourseLoading, lesson, onGoAuth, user])
 
+  useEffect(() => {
+    if (!lesson || user?.role !== 'student') {
+      return
+    }
+
+    let elapsedSeconds = 0
+    let sending = false
+
+    const timer = window.setInterval(() => {
+      if (sending) {
+        return
+      }
+
+      sending = true
+      elapsedSeconds += 5
+
+      void updateLessonProgress(lesson.id, {
+        currentSecond: elapsedSeconds,
+        isCompleted: false,
+      }).catch((progressError) => {
+        console.warn('update lesson progress failed', progressError)
+      }).finally(() => {
+        sending = false
+      })
+    }, 5000)
+
+    return () => {
+      window.clearInterval(timer)
+    }
+  }, [lesson, user?.role])
+
   if (isCourseLoading) {
     return <div style={{ padding: 24 }}>Đang tải bài học...</div>
   }
 
-  if (!course || !lesson) return null
+  if (!course || !lesson) {
+    return <div style={{ padding: 24 }}>{error || 'Không tìm thấy bài học.'}</div>
+  }
 
   const tabs: { id: Tab; label: string }[] = [
     { id: 'overview', label: 'Tổng quan' },

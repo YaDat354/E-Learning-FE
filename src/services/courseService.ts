@@ -1,3 +1,4 @@
+import axios from 'axios'
 import api from '../lib/api.ts'
 import type { Comment, Course, Lesson, LessonExercise, Quiz, TranscriptLine, TranslationLine, User } from '../types/domain.ts'
 
@@ -667,6 +668,10 @@ export async function fetchLessonDetail(courseId: string, lessonId: string) {
 				}
 				: normalizedLesson
 		} catch (error) {
+			if (axios.isAxiosError(error) && error.response?.status === 403) {
+				throw error
+			}
+
 			console.warn('lesson detail request failed', endpoint, error)
 		}
 	}
@@ -686,13 +691,15 @@ export async function fetchMe() {
 	return extractObjectPayload<User>(data)
 }
 
-export async function initializeDomainData() {
+export async function initializeDomainData(): Promise<boolean> {
 	if (initialized) {
-		return
+		return true
 	}
 
-	await Promise.allSettled([fetchCourses(), fetchUsers()])
+	const results = await Promise.allSettled([fetchCourses(), fetchUsers()])
 	initialized = true
+
+	return results.some((result) => result.status === 'fulfilled')
 }
 
 export async function createCourse(payload: Omit<Course, 'id'> & { id?: string }) {

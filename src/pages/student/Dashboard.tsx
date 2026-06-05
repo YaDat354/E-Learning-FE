@@ -1,9 +1,12 @@
+import { useEffect, useMemo, useState } from 'react'
 import { COURSES, ROLE_LABELS } from '../../domain/index.ts'
 import type { User } from '../../domain/index.ts'
+import { fetchContinueLearning, type ContinueLearningItem } from '../../services/enrollmentService.ts'
 import './Dashboard.css'
 
 type DashboardProps = {
 	user: User
+	myCourseIds: string[]
 	onOpenCourse: (courseId: string) => void
 	onOpenLesson: (courseId: string, lessonId: string) => void
 	onOpenCourseList: () => void
@@ -11,16 +14,55 @@ type DashboardProps = {
 	onLogout: () => void
 }
 
-function Dashboard({ user, onOpenCourse, onOpenLesson, onOpenCourseList, onOpenProfile, onLogout }: DashboardProps) {
-	const totalLessons = COURSES.reduce((sum, course) => sum + course.lessons.length, 0)
-	const freeLessons = COURSES.reduce((sum, course) => sum + course.lessons.filter((lesson) => lesson.isFree).length, 0)
+function Dashboard({ user, myCourseIds, onOpenCourse, onOpenLesson, onOpenCourseList, onOpenProfile, onLogout }: DashboardProps) {
+	const [nextLessons, setNextLessons] = useState<ContinueLearningItem[]>([])
+	const [isContinueLoading, setIsContinueLoading] = useState(true)
 
-	const nextLessons = COURSES.slice(0, 3).map((course) => ({
-		courseId: course.id,
-		courseTitle: course.title,
-		lesson: course.lessons[0],
-	})).filter((item) => Boolean(item.lesson))
-	const firstCourseId = COURSES[0]?.id ?? null
+	const myCourses = COURSES.filter((course) => myCourseIds.includes(course.id))
+	const totalLessons = myCourses.reduce((sum, course) => sum + course.lessons.length, 0)
+	const freeLessons = myCourses.reduce((sum, course) => sum + course.lessons.filter((lesson) => lesson.isFree).length, 0)
+	const fallbackNextLessons = useMemo(() => {
+		return myCourses.map((course) => ({
+			courseId: course.id,
+			courseTitle: course.title,
+			lessonId: (course.lessons.find((lesson) => !lesson.isFree) ?? course.lessons[0])?.id ?? '',
+			lessonTitle: (course.lessons.find((lesson) => !lesson.isFree) ?? course.lessons[0])?.title ?? 'Bài học',
+			lessonDuration: (course.lessons.find((lesson) => !lesson.isFree) ?? course.lessons[0])?.duration ?? 'Đang cập nhật',
+		})).filter((item) => item.lessonId.length > 0).slice(0, 3)
+	}, [myCourses])
+
+	const firstCourseId = myCourses[0]?.id ?? null
+
+	useEffect(() => {
+		let mounted = true
+
+		const loadContinueLearning = async () => {
+			setIsContinueLoading(true)
+			try {
+				const rows = await fetchContinueLearning(3)
+				if (mounted) {
+					setNextLessons(rows)
+				}
+			} catch (error) {
+				console.error('load continue learning failed', error)
+				if (mounted) {
+					setNextLessons([])
+				}
+			} finally {
+				if (mounted) {
+					setIsContinueLoading(false)
+				}
+			}
+		}
+
+		void loadContinueLearning()
+
+		return () => {
+			mounted = false
+		}
+	}, [myCourseIds.join('|')])
+
+	const displayNextLessons = nextLessons.length > 0 ? nextLessons : fallbackNextLessons
 
 	return (
 		<section className="student-page">
@@ -46,15 +88,15 @@ function Dashboard({ user, onOpenCourse, onOpenLesson, onOpenCourseList, onOpenP
 
 				<div className="student-grid">
 					<article className="student-card">
-						<h3>Tổng số khóa học</h3>
-						<p className="student-metric">{COURSES.length}</p>
+						<h3>Khóa học của tôi</h3>
+						<p className="student-metric">{myCourses.length}</p>
 					</article>
 					<article className="student-card">
-						<h3>Tổng số bài học</h3>
+						<h3>Bài học trong khóa của tôi</h3>
 						<p className="student-metric">{totalLessons}</p>
 					</article>
 					<article className="student-card">
-						<h3>Bài học miễn phí</h3>
+						<h3>Bài học học thử</h3>
 						<p className="student-metric">{freeLessons}</p>
 					</article>
 				</div>
@@ -62,18 +104,23 @@ function Dashboard({ user, onOpenCourse, onOpenLesson, onOpenCourseList, onOpenP
 				<section className="student-panel">
 					<h3>Gợi ý học tiếp</h3>
 					<div className="student-list">
-						{nextLessons.length === 0 && (
+						{isContinueLoading && (
 							<div className="student-list-item">
-								<div className="student-list-meta">Chưa có dữ liệu khóa học từ backend.</div>
+								<div className="student-list-meta">Đang tải gợi ý học tiếp...</div>
 							</div>
 						)}
-						{nextLessons.map((item) => (
-							<div className="student-list-item" key={`${item.courseId}-${item.lesson.id}`}>
+						{!isContinueLoading && displayNextLessons.length === 0 && (
+							<div className="student-list-item">
+								<div className="student-list-meta">Chưa có dữ liệu học tiếp trong khóa học của bạn.</div>
+							</div>
+						)}
+						{displayNextLessons.map((item) => (
+							<div className="student-list-item" key={`${item.courseId}-${item.lessonId}`}>
 								<div>
-									<div className="student-list-title">{item.lesson.title}</div>
-									<div className="student-list-meta">{item.courseTitle} · {item.lesson.duration}</div>
+									<div className="student-list-title">{item.lessonTitle}</div>
+									<div className="student-list-meta">{item.courseTitle} · {item.lessonDuration}</div>
 								</div>
-								<button className="student-btn" onClick={() => onOpenLesson(item.courseId, item.lesson.id)}>Mở bài</button>
+								<button className="student-btn" onClick={() => onOpenLesson(item.courseId, item.lessonId)}>Mở bài</button>
 							</div>
 						))}
 					</div>

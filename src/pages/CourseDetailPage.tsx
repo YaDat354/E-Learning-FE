@@ -8,6 +8,8 @@ import '../styles/course.css'
 type Props = {
   courseId: string
   user: User | null
+  isEnrolled?: boolean
+  onEnrollCourse?: (courseId: string) => Promise<boolean>
   onGoAuth: () => void
   onBack: () => void
   onGoToLesson: (courseId: string, lessonId: string) => void
@@ -48,10 +50,11 @@ const WHAT_YOU_LEARN: Record<string, string[]> = {
   ],
 }
 
-function CourseDetailPage({ courseId, user, onGoAuth, onBack, onGoToLesson }: Props) {
+function CourseDetailPage({ courseId, user, isEnrolled = false, onEnrollCourse, onGoAuth, onBack, onGoToLesson }: Props) {
   const [course, setCourse] = useState<Course | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
     let mounted = true
@@ -100,17 +103,37 @@ function CourseDetailPage({ courseId, user, onGoAuth, onBack, onGoToLesson }: Pr
     ? 'Xem dưới góc nhìn giảng viên'
     : user?.role === 'admin'
       ? 'Kiểm tra nội dung khóa học'
-      : user
-        ? 'Bắt đầu học'
+      : user?.role === 'student'
+        ? isEnrolled
+          ? 'Bắt đầu học'
+          : 'Đăng ký học'
+        : user
+          ? 'Bắt đầu học'
         : 'Học thử bài miễn phí'
 
-  const handleEnroll = () => {
+  const handleEnroll = async () => {
     const previewLesson = course.lessons.find((lesson) => lesson.isFree) ?? course.lessons[0]
     if (!previewLesson) return
 
     if (!user && !previewLesson.isFree) {
       onGoAuth()
       return
+    }
+
+    if (user?.role === 'student' && !isEnrolled) {
+      if (!onEnrollCourse) {
+        return
+      }
+
+      try {
+        setIsSubmitting(true)
+        const enrolled = await onEnrollCourse(course.id)
+        if (!enrolled) {
+          return
+        }
+      } finally {
+        setIsSubmitting(false)
+      }
     }
 
     onGoToLesson(course.id, previewLesson.id)
@@ -186,8 +209,8 @@ function CourseDetailPage({ courseId, user, onGoAuth, onBack, onGoToLesson }: Pr
               </span>
               {hasPricing && <span className="enroll-discount">-{discount}%</span>}
             </div>
-            <button className="btn-enroll" onClick={handleEnroll}>
-              {actionText}
+            <button className="btn-enroll" onClick={() => void handleEnroll()} disabled={isSubmitting}>
+              {isSubmitting ? 'Đang xử lý...' : actionText}
             </button>
             <ul className="enroll-includes">
               <li>{course.duration} video bài giảng</li>
