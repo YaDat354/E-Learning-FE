@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { COURSES, ROLE_LABELS } from '../../domain/index.ts'
 import type { User } from '../../domain/index.ts'
+import { fetchStudentDashboardMedia } from '../../services/dashboardService.ts'
 import { fetchContinueLearning, type ContinueLearningItem } from '../../services/enrollmentService.ts'
 import './Dashboard.css'
 
@@ -17,6 +18,10 @@ type DashboardProps = {
 function Dashboard({ user, myCourseIds, onOpenCourse, onOpenLesson, onOpenCourseList, onOpenProfile, onLogout }: DashboardProps) {
 	const [nextLessons, setNextLessons] = useState<ContinueLearningItem[]>([])
 	const [isContinueLoading, setIsContinueLoading] = useState(true)
+	const [heroTitle, setHeroTitle] = useState('Chinh phuc bai hoc moi moi ngay')
+	const [heroSubtitle, setHeroSubtitle] = useState('Theo doi tien do, mo bai hoc tiep theo va giu nhiet hoc tap voi bang dieu khien moi.')
+	const [heroImageUrl, setHeroImageUrl] = useState('/student-hero.svg')
+	const [heroHighlights, setHeroHighlights] = useState<string[]>([])
 
 	const myCourses = COURSES.filter((course) => myCourseIds.includes(course.id))
 	const totalLessons = myCourses.reduce((sum, course) => sum + course.lessons.length, 0)
@@ -63,10 +68,68 @@ function Dashboard({ user, myCourseIds, onOpenCourse, onOpenLesson, onOpenCourse
 	}, [myCourseIds.join('|')])
 
 	const displayNextLessons = nextLessons.length > 0 ? nextLessons : fallbackNextLessons
+	const displayHeroHighlights = heroHighlights.length > 0
+		? heroHighlights
+		: [`${myCourses.length} khoa hoc dang theo hoc`, `${displayNextLessons.length} goi y hoc tiep`, `${freeLessons} bai hoc mien phi`]
+
+	useEffect(() => {
+		let mounted = true
+
+		const loadDashboardMedia = async () => {
+			try {
+				const media = await fetchStudentDashboardMedia()
+				if (!mounted || !media) {
+					return
+				}
+
+				if (media.heroTitle) {
+					setHeroTitle(media.heroTitle)
+				}
+
+				if (media.heroSubtitle) {
+					setHeroSubtitle(media.heroSubtitle)
+				}
+
+				if (media.heroImageUrl) {
+					setHeroImageUrl(media.heroImageUrl)
+				}
+
+				if (media.highlights.length > 0) {
+					setHeroHighlights(media.highlights.map((item) => `${item.label}: ${item.value}`))
+				}
+			} catch (error) {
+				console.error('load student dashboard media failed', error)
+			}
+		}
+
+		void loadDashboardMedia()
+
+		return () => {
+			mounted = false
+		}
+	}, [])
 
 	return (
 		<section className="student-page">
 			<div className="student-shell">
+				<section className="student-hero">
+					<div className="student-hero-content">
+						<p className="student-hero-eyebrow">Learning Hub</p>
+						<h2>{heroTitle}</h2>
+						<p>{heroSubtitle}</p>
+						<div className="student-hero-chips">
+							{displayHeroHighlights.map((item) => (
+								<span key={item}>{item}</span>
+							))}
+						</div>
+					</div>
+					<div className="student-hero-art" aria-hidden="true">
+						<img src={heroImageUrl || '/student-hero.svg'} alt="" onError={(e) => {
+							e.currentTarget.src = '/student-hero.svg'
+						}} />
+					</div>
+				</section>
+
 				<header className="student-header">
 					<div>
 						<h1 className="student-title">Dashboard học viên</h1>

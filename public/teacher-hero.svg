@@ -1,0 +1,25 @@
+<svg width="820" height="420" viewBox="0 0 820 420" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="teacherBg" x1="0" y1="0" x2="820" y2="420" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#CCFBF1"/>
+      <stop offset="1" stop-color="#D1FAE5"/>
+    </linearGradient>
+    <linearGradient id="teacherMain" x1="170" y1="82" x2="640" y2="336" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F766E"/>
+      <stop offset="1" stop-color="#0D9488"/>
+    </linearGradient>
+  </defs>
+  <rect width="820" height="420" rx="28" fill="url(#teacherBg)"/>
+  <circle cx="90" cy="320" r="56" fill="#99F6E4"/>
+  <circle cx="742" cy="102" r="50" fill="#A7F3D0"/>
+  <rect x="156" y="80" width="520" height="264" rx="26" fill="url(#teacherMain)"/>
+  <rect x="200" y="124" width="244" height="14" rx="7" fill="#99F6E4"/>
+  <rect x="200" y="154" width="220" height="10" rx="5" fill="#CCFBF1"/>
+  <rect x="200" y="179" width="260" height="10" rx="5" fill="#CCFBF1"/>
+  <rect x="200" y="232" width="180" height="12" rx="6" fill="#5EEAD4"/>
+  <rect x="200" y="254" width="112" height="10" rx="5" fill="#CCFBF1"/>
+  <rect x="488" y="128" width="144" height="174" rx="18" fill="#ECFDF5"/>
+  <rect x="510" y="152" width="102" height="12" rx="6" fill="#2DD4BF"/>
+  <rect x="510" y="176" width="74" height="10" rx="5" fill="#99F6E4"/>
+  <rect x="510" y="224" width="92" height="52" rx="10" fill="#34D399"/>
+</svg>

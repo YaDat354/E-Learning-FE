@@ -1,6 +1,9 @@
 .teacher-page {
 	min-height: 100vh;
-	background: #f7f9fc;
+	background:
+		radial-gradient(circle at 0% 10%, rgba(45, 212, 191, 0.3), transparent 36%),
+		radial-gradient(circle at 100% 0%, rgba(110, 231, 183, 0.28), transparent 30%),
+		#edf8f5;
 	color: #0f172a;
 	padding: 28px;
 }
@@ -12,12 +15,96 @@
 	gap: 18px;
 }
 
+.teacher-hero {
+	position: relative;
+	background: linear-gradient(140deg, #0f766e, #0d9488 45%, #14b8a6);
+	border-radius: 22px;
+	padding: 26px;
+	color: #ecfeff;
+	display: grid;
+	grid-template-columns: 1.2fr 1fr;
+	gap: 18px;
+	overflow: hidden;
+	box-shadow: 0 22px 40px rgba(15, 118, 110, 0.26);
+}
+
+.teacher-hero::after {
+	content: '';
+	position: absolute;
+	inset: 0;
+	background: linear-gradient(110deg, rgba(255, 255, 255, 0.14), transparent 38%);
+	pointer-events: none;
+}
+
+.teacher-hero-content {
+	position: relative;
+	z-index: 1;
+}
+
+.teacher-hero-eyebrow {
+	margin: 0 0 8px;
+	font-size: 12px;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: rgba(236, 254, 255, 0.86);
+}
+
+.teacher-hero h2 {
+	margin: 0;
+	font-size: clamp(24px, 3vw, 36px);
+	line-height: 1.15;
+	letter-spacing: -0.02em;
+}
+
+.teacher-hero p {
+	margin: 10px 0 0;
+	line-height: 1.55;
+	color: rgba(236, 254, 255, 0.94);
+}
+
+.teacher-hero-tags {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+	margin-top: 18px;
+}
+
+.teacher-hero-tags span {
+	padding: 7px 12px;
+	border-radius: 999px;
+	border: 1px solid rgba(255, 255, 255, 0.3);
+	background: rgba(255, 255, 255, 0.14);
+	font-size: 12px;
+	font-weight: 600;
+	white-space: nowrap;
+}
+
+.teacher-hero-art {
+	position: relative;
+	z-index: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.teacher-hero-art img {
+	width: min(100%, 440px);
+	height: auto;
+	filter: drop-shadow(0 18px 26px rgba(15, 23, 42, 0.32));
+}
+
 .teacher-header {
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
 	gap: 12px;
 	flex-wrap: wrap;
+	background: rgba(255, 255, 255, 0.74);
+	backdrop-filter: blur(8px);
+	border-radius: 16px;
+	padding: 16px;
+	border: 1px solid rgba(148, 163, 184, 0.22);
 }
 
 .teacher-title {
@@ -73,11 +160,13 @@
 	font-size: 14px;
 	font-weight: 600;
 	cursor: pointer;
-	transition: opacity 0.15s;
+	transition: opacity 0.15s, transform 0.15s, box-shadow 0.15s;
 }
 
 .teacher-btn:hover {
-	opacity: 0.88;
+	opacity: 0.92;
+	transform: translateY(-1px);
+	box-shadow: 0 8px 16px rgba(13, 148, 136, 0.22);
 }
 
 .teacher-btn.ghost {
@@ -97,10 +186,11 @@
 }
 
 .teacher-card {
-	background: #fff;
-	border: 1px solid #e2e8f0;
+	background: rgba(255, 255, 255, 0.84);
+	border: 1px solid rgba(148, 163, 184, 0.24);
 	border-radius: 14px;
 	padding: 18px;
+	box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
 }
 
 .teacher-card h3 {
@@ -124,8 +214,8 @@
 }
 
 .teacher-quick-btn {
-	border: 1px solid #e2e8f0;
-	background: #fff;
+	border: 1px solid #d0ebe5;
+	background: rgba(255, 255, 255, 0.9);
 	border-radius: 14px;
 	padding: 16px;
 	cursor: pointer;
@@ -136,12 +226,14 @@
 	font-weight: 600;
 	color: #0f172a;
 	text-align: left;
-	transition: border-color 0.15s, background 0.15s;
+	transition: border-color 0.15s, background 0.15s, transform 0.15s, box-shadow 0.15s;
 }
 
 .teacher-quick-btn:hover {
 	border-color: #0d9488;
-	background: #f0fdfa;
+	background: #ecfeff;
+	transform: translateY(-2px);
+	box-shadow: 0 10px 18px rgba(13, 148, 136, 0.15);
 }
 
 .teacher-quick-icon {
@@ -149,10 +241,11 @@
 }
 
 .teacher-panel {
-	background: #fff;
-	border: 1px solid #e2e8f0;
+	background: rgba(255, 255, 255, 0.88);
+	border: 1px solid rgba(148, 163, 184, 0.24);
 	border-radius: 14px;
 	padding: 18px;
+	box-shadow: 0 10px 26px rgba(15, 23, 42, 0.08);
 }
 
 .teacher-panel-head {
@@ -181,6 +274,12 @@
 	background: #fff;
 	border-radius: 12px;
 	padding: 12px;
+	transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.teacher-list-item:hover {
+	transform: translateY(-1px);
+	box-shadow: 0 8px 18px rgba(15, 118, 110, 0.14);
 }
 
 .teacher-list-title {
@@ -332,6 +431,15 @@
 
 	.teacher-quick-nav {
 		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.teacher-hero {
+		grid-template-columns: 1fr;
+		padding: 20px;
+	}
+
+	.teacher-hero-art {
+		justify-content: flex-start;
 	}
 }
 

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Bell } from 'lucide-react'
 import { COURSES, ROLE_LABELS, fetchLessonComments } from '../../domain/index.ts'
 import type { User } from '../../domain/index.ts'
+import { fetchTeacherDashboardMedia } from '../../services/dashboardService.ts'
 import { getDiscussionNotificationsApi } from '../../services/discussionService.ts'
 import { getTeacherCourses } from '../../utils/teacher.ts'
 import './Dashboard.css'
@@ -27,6 +28,10 @@ function Dashboard({ user, teacherCourseIds, onOpenProfile, onGoCourses, onGoCre
 		0,
 	)
 	const [unreadDiscussionCount, setUnreadDiscussionCount] = useState(0)
+	const [heroTitle, setHeroTitle] = useState('Dieu phoi lop hoc va theo doi tuong tac theo thoi gian thuc')
+	const [heroSubtitle, setHeroSubtitle] = useState('Tong hop nhanh khoa hoc, luong thao luan va cac dau viec quan trong cho giang vien.')
+	const [heroImageUrl, setHeroImageUrl] = useState('/teacher-hero.svg')
+	const [heroHighlights, setHeroHighlights] = useState<string[]>([])
 
 	const lessonIds = Array.from(new Set(teacherCourses.flatMap((course) => course.lessons.map((lesson) => lesson.id)).filter(Boolean)))
 
@@ -80,11 +85,69 @@ function Dashboard({ user, teacherCourseIds, onOpenProfile, onGoCourses, onGoCre
 		}
 	}, [lessonIds, user.email, user.id])
 
+	useEffect(() => {
+		let mounted = true
+
+		const loadDashboardMedia = async () => {
+			try {
+				const media = await fetchTeacherDashboardMedia()
+				if (!mounted || !media) {
+					return
+				}
+
+				if (media.heroTitle) {
+					setHeroTitle(media.heroTitle)
+				}
+
+				if (media.heroSubtitle) {
+					setHeroSubtitle(media.heroSubtitle)
+				}
+
+				if (media.heroImageUrl) {
+					setHeroImageUrl(media.heroImageUrl)
+				}
+
+				if (media.highlights.length > 0) {
+					setHeroHighlights(media.highlights.map((item) => `${item.label}: ${item.value}`))
+				}
+			} catch (error) {
+				console.error('load teacher dashboard media failed', error)
+			}
+		}
+
+		void loadDashboardMedia()
+
+		return () => {
+			mounted = false
+		}
+	}, [])
+
 	const displayUnreadDiscussionCount = lessonIds.length === 0 ? 0 : unreadDiscussionCount
+	const displayHeroHighlights = heroHighlights.length > 0
+		? heroHighlights
+		: [`${teacherCourses.length} khoa hoc dang quan ly`, `${displayUnreadDiscussionCount} phan hoi chua doc`, `${totalQuizzes} quiz dang hoat dong`]
 
 	return (
 		<section className="teacher-page">
 			<div className="teacher-shell">
+				<section className="teacher-hero">
+					<div className="teacher-hero-content">
+						<p className="teacher-hero-eyebrow">Teaching Command Center</p>
+						<h2>{heroTitle}</h2>
+						<p>{heroSubtitle}</p>
+						<div className="teacher-hero-tags">
+							{displayHeroHighlights.map((item) => (
+								<span key={item}>{item}</span>
+							))}
+						</div>
+					</div>
+					<div className="teacher-hero-art" aria-hidden="true">
+						<img src={heroImageUrl || '/teacher-hero.svg'} alt="" onError={(e) => {
+							e.currentTarget.src = '/teacher-hero.svg'
+						}} />
+					</div>
+				</section>
+
 				<header className="teacher-header">
 					<div>
 						<h1 className="teacher-title">Dashboard giảng viên</h1>
