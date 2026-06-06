@@ -93,6 +93,13 @@ function CourseList({ myCourseIds, onOpenCourse, onBackToDashboard, onLogout }: 
 						<div className="student-list-item" key={course.id}>
 							<div>
 								<div className="student-list-title">{course.title || 'Khóa học chưa có tiêu đề'}</div>
+								<div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+									{myCourseIds.includes(course.id) && (
+										<span style={{ fontSize: 12, fontWeight: 700, color: '#16a34a', background: '#16a34a18', padding: '3px 8px', borderRadius: 999 }}>
+											Đã mua
+										</span>
+									)}
+								</div>
 								<div className="student-list-meta">
 									{course.level || 'Chưa phân cấp'} · {course.duration || 'Đang cập nhật'} · {(course.studentCount ?? 0).toLocaleString()} học viên
 								</div>

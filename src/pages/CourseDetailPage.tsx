@@ -106,7 +106,9 @@ function CourseDetailPage({ courseId, user, isEnrolled = false, onEnrollCourse, 
       : user?.role === 'student'
         ? isEnrolled
           ? 'Bắt đầu học'
-          : 'Đăng ký học'
+          : hasPricing
+            ? 'Mua khóa học'
+            : 'Đăng ký học ngay'
         : user
           ? 'Bắt đầu học'
         : 'Học thử bài miễn phí'
@@ -209,9 +211,20 @@ function CourseDetailPage({ courseId, user, isEnrolled = false, onEnrollCourse, 
               </span>
               {hasPricing && <span className="enroll-discount">-{discount}%</span>}
             </div>
+            {isEnrolled && (
+              <div style={{ marginBottom: 10, fontSize: 13, fontWeight: 700, color: '#16a34a' }}>
+                Trạng thái: Đã mua
+              </div>
+            )}
+            {!isEnrolled && hasPricing && (
+              <div style={{ marginBottom: 10, fontSize: 13, color: 'var(--muted)' }}>
+                Trạng thái: Chưa mua, sẽ chuyển sang VNPAY khi bấm đăng ký.
+              </div>
+            )}
             <button className="btn-enroll" onClick={() => void handleEnroll()} disabled={isSubmitting}>
               {isSubmitting ? 'Đang xử lý...' : actionText}
             </button>
+            {hasPricing && <p style={{ fontSize: 12, color: 'var(--muted)', margin: '10px 0 0' }}>Thanh toán qua VNPAY sau khi bấm đăng ký.</p>}
             <ul className="enroll-includes">
               <li>{course.duration} video bài giảng</li>
               <li>{course.lessons.length} bài học theo lộ trình</li>

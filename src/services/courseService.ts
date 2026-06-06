@@ -612,8 +612,8 @@ function normalizeCourse(course: Course): Course {
 	const duration = typeof raw.duration === 'string' && raw.duration.trim().length > 0
 		? raw.duration
 		: 'Đang cập nhật'
-	const price = typeof raw.price === 'number' ? raw.price : 0
-	const originalPrice = typeof raw.originalPrice === 'number' ? raw.originalPrice : 0
+	const price = readNumberFromSources([raw], ['price', 'salePrice', 'amount']) ?? 0
+	const originalPrice = readNumberFromSources([raw], ['originalPrice', 'original_price', 'listPrice']) ?? price
 	const rating = typeof raw.rating === 'number' ? raw.rating : 0
 	const reviewCount = typeof raw.reviewCount === 'number' ? raw.reviewCount : 0
 	const instructorAvatar = typeof raw.instructorAvatar === 'string' && raw.instructorAvatar.trim().length > 0
@@ -678,6 +678,8 @@ function normalizeCourseDetail(payload: unknown): Course {
 	const durationLabel = typeof stats.totalDurationLabel === 'string' && stats.totalDurationLabel.trim().length > 0
 		? stats.totalDurationLabel
 		: 'Đang cập nhật'
+	const price = readNumberFromSources([raw], ['price', 'salePrice', 'amount']) ?? 0
+	const originalPrice = readNumberFromSources([raw], ['originalPrice', 'original_price', 'listPrice']) ?? price
 
 	return normalizeCourse({
 		id: typeof raw.id === 'string' ? raw.id : '',
@@ -695,8 +697,8 @@ function normalizeCourseDetail(payload: unknown): Course {
 		reviewCount: 0,
 		studentCount: totalStudents,
 		duration: durationLabel,
-		price: 0,
-		originalPrice: 0,
+		price,
+		originalPrice,
 		tags: [level],
 		lessons,
 	})

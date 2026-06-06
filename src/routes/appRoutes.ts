@@ -15,6 +15,8 @@ export type Route =
   | { view: 'admin-stats' }
   | { view: 'admin-users' }
   | { view: 'admin-courses' }
+  | { view: 'payment-checkout' }
+  | { view: 'payment-return' }
   | { view: 'course'; courseId: string }
   | { view: 'lesson'; courseId: string; lessonId: string }
 
@@ -92,6 +94,14 @@ export function parsePath(pathname: string): Route {
 
   if (parts.length === 2 && parts[0] === 'admin' && parts[1] === 'khoa-hoc') {
     return { view: 'admin-courses' }
+  }
+
+  if (parts.length === 1 && parts[0] === 'payment-checkout') {
+    return { view: 'payment-checkout' }
+  }
+
+  if (parts.length === 1 && parts[0] === 'payment-return') {
+    return { view: 'payment-return' }
   }
 
   if (parts.length === 2 && parts[0] === 'khoa-hoc') {
@@ -172,6 +182,14 @@ export function buildPath(route: Route): string {
 
   if (route.view === 'admin-courses') {
     return '/admin/khoa-hoc'
+  }
+
+  if (route.view === 'payment-checkout') {
+    return '/payment-checkout'
+  }
+
+  if (route.view === 'payment-return') {
+    return '/payment-return'
   }
 
   if (route.view === 'course') {

@@ -7,6 +7,7 @@ import { inferRoleFromEmail } from './utils/auth.ts'
 import { hasExplicitTeacherOwnership } from './utils/teacher.ts'
 import { login as loginApi, logout as logoutApi } from './services/authService.ts'
 import { enrollCourse as enrollCourseApi, fetchMyCourses } from './services/enrollmentService.ts'
+import { createVnpayCheckout } from './services/paymentService.ts'
 import { fetchMyTeachingCourses } from './services/teacherService.ts'
 import HomePage from './pages/HomePage.tsx'
 import AuthPage from './pages/AuthPage.tsx'
@@ -29,8 +30,18 @@ import AdminStats from './pages/admin/Stats.tsx'
 import AdminUserManage from './pages/admin/UserManage.tsx'
 import AdminCourseManage from './pages/admin/CourseManage.tsx'
 import AdminLayout from './pages/admin/AdminLayout.tsx'
+import PaymentCheckoutPage from './pages/PaymentCheckoutPage.tsx'
+import PaymentReturnPage from './pages/PaymentReturnPage.tsx'
 
 const STUDENT_COURSE_IDS_KEY = 'studentCourseIds'
+const PENDING_PAYMENT_CHECKOUT_KEY = 'pendingPaymentCheckout'
+
+type PendingPaymentCheckout = {
+  orderId: string
+  qrCodeUrl?: string
+  deeplink?: string
+  paymentUrl?: string
+}
 
 function defaultRouteByRole(role: User['role']): Route {
   if (role === 'student') {
@@ -144,6 +155,10 @@ function readPersistedStudentCourseIds(): string[] {
 
 function persistStudentCourseIds(courseIds: string[]) {
   localStorage.setItem(STUDENT_COURSE_IDS_KEY, JSON.stringify(Array.from(new Set(courseIds))))
+}
+
+function persistPendingPaymentCheckout(payload: PendingPaymentCheckout) {
+  sessionStorage.setItem(PENDING_PAYMENT_CHECKOUT_KEY, JSON.stringify(payload))
 }
 
 function mergeCoursesFromTeacherScope(scopedCourses: Course[]) {
@@ -316,6 +331,40 @@ function App() {
   }, [isBootstrapped, user?.role])
 
   useEffect(() => {
+    if (!isBootstrapped || route.view !== 'payment-return' || user?.role !== 'student') {
+      return
+    }
+
+    let cancelled = false
+    let attempt = 0
+    const maxAttempts = 8
+    const retryDelayMs = 2500
+
+    const syncWithRetry = async () => {
+      if (cancelled) {
+        return
+      }
+
+      await syncStudentCourses()
+      attempt += 1
+
+      if (cancelled || attempt >= maxAttempts) {
+        return
+      }
+
+      window.setTimeout(() => {
+        void syncWithRetry()
+      }, retryDelayMs)
+    }
+
+    void syncWithRetry()
+
+    return () => {
+      cancelled = true
+    }
+  }, [isBootstrapped, route.view, user?.role])
+
+  useEffect(() => {
     if (!isBootstrapped || user?.role !== 'teacher') {
       return
     }
@@ -380,7 +429,39 @@ function App() {
       return false
     }
 
+    const course = COURSES.find((item) => item.id === courseId)
+
+    if (!course) {
+      return false
+    }
+
     try {
+      if (course.price > 0) {
+        const paymentResult = await createVnpayCheckout({
+          courseId: course.id,
+          courseTitle: course.title,
+          amount: course.price,
+          customerName: user.name,
+          customerEmail: user.email,
+        })
+
+        if (paymentResult.paymentUrl && /^https?:\/\//i.test(paymentResult.paymentUrl)) {
+          window.location.href = paymentResult.paymentUrl
+          return false
+        }
+
+        if (paymentResult.qrCodeUrl || paymentResult.deeplink || paymentResult.paymentUrl) {
+          persistPendingPaymentCheckout({
+            orderId: paymentResult.orderId,
+            qrCodeUrl: paymentResult.qrCodeUrl,
+            deeplink: paymentResult.deeplink,
+            paymentUrl: paymentResult.paymentUrl,
+          })
+          navigate({ view: 'payment-checkout' })
+          return false
+        }
+      }
+
       await enrollCourseApi(courseId)
       const nextIds = studentCourseIds.includes(courseId) ? studentCourseIds : [...studentCourseIds, courseId]
       setStudentCourseIds(nextIds)
@@ -388,7 +469,15 @@ function App() {
       return true
     } catch (error) {
       console.error('enroll course failed', error)
-      alert('Không thể đăng ký khóa học. Vui lòng thử lại.')
+      if (axios.isAxiosError(error)) {
+        const errorData = error.response?.data as { message?: string; error?: string } | undefined
+        const message = errorData?.message || errorData?.error || error.message
+        alert(`Không thể đăng ký khóa học: ${message}`)
+      } else if (error instanceof Error) {
+        alert(`Không thể đăng ký khóa học: ${error.message}`)
+      } else {
+        alert('Không thể đăng ký khóa học. Vui lòng thử lại.')
+      }
       return false
     }
   }
@@ -507,6 +596,27 @@ function App() {
         onGoAuth={goToAuth}
         onGoCourse={goToCourse}
         onLogout={handleLogout}
+      />
+    )
+  }
+
+  if (effectiveRoute.view === 'payment-return') {
+    return (
+      <PaymentReturnPage
+        user={user}
+        onGoHome={goToHome}
+        onGoToStudentCourses={() => navigate({ view: 'student-courses' })}
+        onRefreshStatus={() => void syncStudentCourses()}
+      />
+    )
+  }
+
+  if (effectiveRoute.view === 'payment-checkout') {
+    return (
+      <PaymentCheckoutPage
+        user={user}
+        onGoHome={goToHome}
+        onGoToStudentCourses={() => navigate({ view: 'student-courses' })}
       />
     )
   }
