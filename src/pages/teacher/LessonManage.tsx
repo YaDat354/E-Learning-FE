@@ -12,9 +12,10 @@ type Props = {
 	user: User
 	teacherCourseIds: string[]
 	onBackToDashboard: () => void
+	onOpenLessonDiscussion: (courseId: string, lessonId: string) => void
 }
 
-function LessonManage({ user, teacherCourseIds, onBackToDashboard }: Props) {
+function LessonManage({ user, teacherCourseIds, onBackToDashboard, onOpenLessonDiscussion }: Props) {
 	const teacherCourses = getTeacherCourses(COURSES, user, teacherCourseIds)
 	const [selectedCourseId, setSelectedCourseId] = useState(teacherCourses[0]?.id ?? '')
 	const [editingId, setEditingId] = useState<string | null>(null)
@@ -292,6 +293,12 @@ function LessonManage({ user, teacherCourseIds, onBackToDashboard }: Props) {
 											onClick={() => toggleLessonPreview(lesson.id)}
 										>
 											{expandedLessonId === lesson.id ? 'Ẩn bài học' : 'Hiển thị bài học'}
+										</button>
+										<button
+											className="teacher-action-btn"
+											onClick={() => onOpenLessonDiscussion(course.id, lesson.id)}
+										>
+											Thảo luận
 										</button>
 										<button
 											className="teacher-action-btn"

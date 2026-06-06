@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import axios from 'axios'
-import { ROLE_LABELS, fetchLessonComments } from '../domain/index.ts'
+import { Bell } from 'lucide-react'
+import { ROLE_LABELS } from '../domain/index.ts'
 import type { Comment, Course, TranscriptLine, User } from '../domain/index.ts'
 import { fetchCourseDetail, fetchLessonDetail } from '../services/courseService.ts'
+import { getLessonCommentsApi, markLessonDiscussionReadApi } from '../services/discussionService.ts'
 import { updateLessonProgress } from '../services/enrollmentService.ts'
 import VideoPlayer from '../components/course/VideoPlayer.tsx'
 import QuizPanel from '../components/course/QuizPanel.tsx'
@@ -11,6 +13,40 @@ import DiscussionPanel from '../components/course/DiscussionPanel.tsx'
 import '../styles/course.css'
 
 type Tab = 'overview' | 'transcript' | 'quiz' | 'submission' | 'discussion'
+const DISCUSSION_SEEN_COUNT_KEY = 'discussionSeenCount'
+
+function buildDiscussionSeenKey(user: User | null, lessonId: string): string {
+  if (!lessonId) {
+    return ''
+  }
+
+  const userToken = user?.id || user?.email || 'guest'
+  return `${DISCUSSION_SEEN_COUNT_KEY}:${userToken}:${lessonId}`
+}
+
+function readSeenCommentCount(user: User | null, lessonId: string): number {
+  const key = buildDiscussionSeenKey(user, lessonId)
+  if (!key) {
+    return 0
+  }
+
+  const raw = localStorage.getItem(key)
+  if (!raw) {
+    return 0
+  }
+
+  const parsed = Number(raw)
+  return Number.isFinite(parsed) ? Math.max(0, parsed) : 0
+}
+
+function persistSeenCommentCount(user: User | null, lessonId: string, count: number) {
+  const key = buildDiscussionSeenKey(user, lessonId)
+  if (!key) {
+    return
+  }
+
+  localStorage.setItem(key, String(Math.max(0, count)))
+}
 
 type LessonPageProps = {
   courseId: string
@@ -27,6 +63,7 @@ function LessonPage({ courseId, lessonId, user, onBack, onGoToLesson, onGoAuth }
   const [isCourseLoading, setIsCourseLoading] = useState(true)
   const [error, setError] = useState('')
   const [comments, setComments] = useState<Comment[]>([])
+  const [unreadDiscussionCount, setUnreadDiscussionCount] = useState(0)
 
   const lesson = course?.lessons.find((l) => l.id === lessonId)
 
@@ -86,27 +123,62 @@ function LessonPage({ courseId, lessonId, user, onBack, onGoToLesson, onGoAuth }
 
   useEffect(() => {
     let mounted = true
+    let timerId: number | null = null
 
     const loadComments = async () => {
       try {
-        const next = await fetchLessonComments(lessonId)
-        if (mounted) {
-          setComments(next)
+        const next = await getLessonCommentsApi(lessonId)
+        if (!mounted) {
+          return
+        }
+
+        setComments(next)
+
+        if (activeTab === 'discussion') {
+          persistSeenCommentCount(user, lessonId, next.length)
+          setUnreadDiscussionCount(0)
+        } else {
+          const seenCount = readSeenCommentCount(user, lessonId)
+          setUnreadDiscussionCount(Math.max(0, next.length - seenCount))
         }
       } catch (error) {
         console.error('load lesson comments failed', error)
-        if (mounted) {
+        if (mounted && comments.length === 0) {
           setComments([])
         }
       }
     }
 
     void loadComments()
+    timerId = window.setInterval(() => {
+      void loadComments()
+    }, 15000)
 
     return () => {
       mounted = false
+      if (timerId !== null) {
+        window.clearInterval(timerId)
+      }
     }
-  }, [lessonId])
+  }, [lessonId, activeTab, user?.id, user?.email])
+
+  useEffect(() => {
+    if (activeTab !== 'discussion') {
+      return
+    }
+
+    persistSeenCommentCount(user, lessonId, comments.length)
+    setUnreadDiscussionCount(0)
+
+    if (user) {
+      void markLessonDiscussionReadApi(lessonId, {
+        lastSeenCommentId: comments[0]?.id,
+        lastSeenAt: new Date().toISOString(),
+      }).catch((error) => {
+        console.warn('mark lesson discussion read failed', error)
+      })
+    }
+  }, [activeTab, comments.length, lessonId, user?.id, user?.email])
 
   const renderSpeakerLine = (line: string, key: string) => {
     const trimmed = line.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/\s+/g, ' ').trim()
@@ -196,8 +268,20 @@ function LessonPage({ courseId, lessonId, user, onBack, onGoToLesson, onGoAuth }
           </div>
         </div>
         {user && (
-          <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)' }}>
-            Xin chào, <span style={{ color: '#fff', fontWeight: 600 }}>{user.name}</span> · {ROLE_LABELS[user.role]}
+          <div className="lesson-nav-actions">
+            <button
+              className={`lesson-bell-btn ${activeTab === 'discussion' ? 'active' : ''}`}
+              onClick={() => setActiveTab('discussion')}
+              type="button"
+              aria-label="Mở thảo luận"
+              title="Mở thảo luận"
+            >
+              <Bell size={16} />
+              {unreadDiscussionCount > 0 && <span className="lesson-bell-badge">{unreadDiscussionCount > 99 ? '99+' : unreadDiscussionCount}</span>}
+            </button>
+            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)' }}>
+              Xin chào, <span style={{ color: '#fff', fontWeight: 600 }}>{user.name}</span> · {ROLE_LABELS[user.role]}
+            </div>
           </div>
         )}
       </nav>
@@ -296,10 +380,12 @@ function LessonPage({ courseId, lessonId, user, onBack, onGoToLesson, onGoAuth }
               {activeTab === 'submission' && <AssignmentPanel lessonTitle={lesson.title} userRole={user?.role ?? null} />}
               {activeTab === 'discussion' && (
                 <DiscussionPanel
+                  lessonId={lessonId}
                   user={user}
                   commentsSeed={comments}
                   onGoAuth={onGoAuth}
                   userRole={user?.role ?? null}
+                  onCommentsChange={setComments}
                 />
               )}
             </div>

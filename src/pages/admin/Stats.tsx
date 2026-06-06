@@ -29,7 +29,7 @@ function Stats({ onBackToDashboard }: Props) {
       setError('')
 
       try {
-        const [_, students, summary] = await Promise.all([
+        const [, students, summary] = await Promise.all([
           fetchCourses(),
           getAdminStudents(),
           getAdminDashboardSummary(),

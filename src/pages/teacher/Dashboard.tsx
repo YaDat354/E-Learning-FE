@@ -1,5 +1,8 @@
-import { COURSES, ROLE_LABELS } from '../../domain/index.ts'
+import { useEffect, useState } from 'react'
+import { Bell } from 'lucide-react'
+import { COURSES, ROLE_LABELS, fetchLessonComments } from '../../domain/index.ts'
 import type { User } from '../../domain/index.ts'
+import { getDiscussionNotificationsApi } from '../../services/discussionService.ts'
 import { getTeacherCourses } from '../../utils/teacher.ts'
 import './Dashboard.css'
 
@@ -23,6 +26,61 @@ function Dashboard({ user, teacherCourseIds, onOpenProfile, onGoCourses, onGoCre
 		(sum, c) => sum + c.lessons.filter((l) => l.quiz !== null).length,
 		0,
 	)
+	const [unreadDiscussionCount, setUnreadDiscussionCount] = useState(0)
+
+	const lessonIds = Array.from(new Set(teacherCourses.flatMap((course) => course.lessons.map((lesson) => lesson.id)).filter(Boolean)))
+
+	useEffect(() => {
+		let mounted = true
+		let timerId: number | null = null
+
+		const loadUnreadDiscussionCount = async () => {
+			try {
+				const notificationsPayload = await getDiscussionNotificationsApi()
+				if (notificationsPayload) {
+					if (mounted) {
+						setUnreadDiscussionCount(notificationsPayload.totalUnread)
+					}
+					return
+				}
+
+				const userToken = user.id || user.email || 'guest'
+				const unreadByLesson = await Promise.all(
+					lessonIds.map(async (lessonId) => {
+						const comments = await fetchLessonComments(lessonId)
+						const seenRaw = localStorage.getItem(`discussionSeenCount:${userToken}:${lessonId}`)
+						const seenCount = Number(seenRaw)
+						const normalizedSeen = Number.isFinite(seenCount) ? Math.max(0, seenCount) : 0
+						return Math.max(0, comments.length - normalizedSeen)
+					}),
+				)
+
+				if (mounted) {
+					setUnreadDiscussionCount(unreadByLesson.reduce((sum, count) => sum + count, 0))
+				}
+			} catch (error) {
+				console.error('load teacher unread discussion count failed', error)
+			}
+		}
+
+		if (lessonIds.length === 0) {
+			return
+		}
+
+		void loadUnreadDiscussionCount()
+		timerId = window.setInterval(() => {
+			void loadUnreadDiscussionCount()
+		}, 20000)
+
+		return () => {
+			mounted = false
+			if (timerId !== null) {
+				window.clearInterval(timerId)
+			}
+		}
+	}, [lessonIds, user.email, user.id])
+
+	const displayUnreadDiscussionCount = lessonIds.length === 0 ? 0 : unreadDiscussionCount
 
 	return (
 		<section className="teacher-page">
@@ -35,6 +93,13 @@ function Dashboard({ user, teacherCourseIds, onOpenProfile, onGoCourses, onGoCre
 						</p>
 					</div>
 					<div className="teacher-toolbar">
+						<button className="teacher-btn ghost teacher-bell-btn" onClick={onGoLessons} aria-label="Mở thảo luận bài học" title="Mở thảo luận bài học">
+							<Bell size={16} />
+							<span>Thảo luận</span>
+							{displayUnreadDiscussionCount > 0 && (
+								<span className="teacher-bell-badge">{displayUnreadDiscussionCount > 99 ? '99+' : displayUnreadDiscussionCount}</span>
+							)}
+						</button>
 						<button className="teacher-btn ghost" onClick={onOpenProfile}>
 							Hồ sơ
 						</button>
@@ -94,6 +159,10 @@ function Dashboard({ user, teacherCourseIds, onOpenProfile, onGoCourses, onGoCre
 					<button className="teacher-quick-btn" onClick={onGoAssignments}>
 						<span className="teacher-quick-icon">✅</span>
 						<span>Quản lý bài tập</span>
+					</button>
+					<button className="teacher-quick-btn" onClick={onGoLessons}>
+						<span className="teacher-quick-icon">🔔</span>
+						<span>{displayUnreadDiscussionCount > 0 ? `Thảo luận mới (${displayUnreadDiscussionCount})` : 'Thảo luận bài học'}</span>
 					</button>
 				</div>
 

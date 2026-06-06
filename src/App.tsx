@@ -327,7 +327,13 @@ function App() {
       return
     }
 
-    void syncStudentCourses()
+    const timerId = window.setTimeout(() => {
+      void syncStudentCourses()
+    }, 0)
+
+    return () => {
+      window.clearTimeout(timerId)
+    }
   }, [isBootstrapped, user?.role])
 
   useEffect(() => {
@@ -369,7 +375,13 @@ function App() {
       return
     }
 
-    void syncTeacherCourses()
+    const timerId = window.setTimeout(() => {
+      void syncTeacherCourses()
+    }, 0)
+
+    return () => {
+      window.clearTimeout(timerId)
+    }
   }, [isBootstrapped, user?.role])
 
   const effectiveRoute = useMemo<Route>(() => {
@@ -744,6 +756,7 @@ function App() {
         user={user}
         teacherCourseIds={teacherCourseIds}
         onBackToDashboard={() => navigate({ view: 'teacher-dashboard' })}
+        onOpenLessonDiscussion={goToLesson}
       />
     )
   }

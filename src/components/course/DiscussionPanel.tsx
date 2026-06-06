@@ -1,34 +1,87 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { Comment, User, UserRole } from '../../domain/index.ts'
+import { createLessonCommentApi, getLessonCommentsApi } from '../../services/discussionService.ts'
 
 type DiscussionPanelProps = {
+  lessonId: string
   user: User | null
   commentsSeed: Comment[]
   onGoAuth: () => void
   userRole: UserRole | null
+  onCommentsChange?: (comments: Comment[]) => void
 }
 
-function DiscussionPanel({ user, commentsSeed, onGoAuth, userRole }: DiscussionPanelProps) {
+function DiscussionPanel({ lessonId, user, commentsSeed, onGoAuth, userRole, onCommentsChange }: DiscussionPanelProps) {
   const [comments, setComments] = useState<Comment[]>(commentsSeed)
   const [newText, setNewText] = useState('')
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set())
+  const [isPosting, setIsPosting] = useState(false)
+  const [postError, setPostError] = useState('')
+  const [replyingToId, setReplyingToId] = useState<string | null>(null)
+  const [replyText, setReplyText] = useState('')
+  const [isReplyPosting, setIsReplyPosting] = useState(false)
+  const [replyError, setReplyError] = useState('')
 
-  const handlePost = () => {
-    if (!newText.trim() || !user) return
+  useEffect(() => {
+    setComments(commentsSeed)
+  }, [commentsSeed])
 
-    const newComment: Comment = {
-      id: `new-${Date.now()}`,
-      author: user.name,
-      initials: user.name.slice(0, 2).toUpperCase(),
-      avatarColor: '#1066d6',
-      text: newText.trim(),
-      time: 'Vừa xong',
-      likes: 0,
-      replies: [],
+  useEffect(() => {
+    onCommentsChange?.(comments)
+  }, [comments, onCommentsChange])
+
+  const handlePost = async () => {
+    const content = newText.trim()
+    if (!content || !user || isPosting) {
+      return
     }
 
-    setComments((prev) => [newComment, ...prev])
-    setNewText('')
+    setIsPosting(true)
+    setPostError('')
+
+    try {
+      await createLessonCommentApi(lessonId, {
+        text: content,
+        authorName: user.name,
+      })
+
+      const nextComments = await getLessonCommentsApi(lessonId)
+      setComments(nextComments)
+      setNewText('')
+    } catch (error) {
+      console.error('create lesson comment failed', error)
+      setPostError('Không thể lưu bình luận. Vui lòng thử lại.')
+    } finally {
+      setIsPosting(false)
+    }
+  }
+
+  const handleReply = async (commentId: string) => {
+    const content = replyText.trim()
+    if (!content || !user || isReplyPosting) {
+      return
+    }
+
+    setIsReplyPosting(true)
+    setReplyError('')
+
+    try {
+      await createLessonCommentApi(lessonId, {
+        text: content,
+        authorName: user.name,
+        parentCommentId: commentId,
+      })
+
+      const nextComments = await getLessonCommentsApi(lessonId)
+      setComments(nextComments)
+      setReplyText('')
+      setReplyingToId(null)
+    } catch (error) {
+      console.error('create lesson reply failed', error)
+      setReplyError('Không thể gửi trả lời. Vui lòng thử lại.')
+    } finally {
+      setIsReplyPosting(false)
+    }
   }
 
   const toggleLike = (id: string) => {
@@ -77,13 +130,14 @@ function DiscussionPanel({ user, commentsSeed, onGoAuth, userRole }: DiscussionP
             <div className="new-comment-actions">
               <button
                 className="btn-post-comment"
-                disabled={!newText.trim()}
-                onClick={handlePost}
+                disabled={!newText.trim() || isPosting}
+                onClick={() => void handlePost()}
                 type="button"
               >
-                {postLabel}
+                {isPosting ? 'Đang gửi...' : postLabel}
               </button>
             </div>
+            {postError && <div style={{ color: '#dc2626', fontSize: 13, marginTop: 8 }}>{postError}</div>}
           </div>
         </div>
       ) : (
@@ -116,10 +170,63 @@ function DiscussionPanel({ user, commentsSeed, onGoAuth, userRole }: DiscussionP
                   >
                     Thích {comment.likes + (likedIds.has(comment.id) ? 1 : 0)}
                   </button>
-                  <button className="btn-reply" type="button">
+                  <button
+                    className="btn-reply"
+                    type="button"
+                    onClick={() => {
+                      if (!user) {
+                        onGoAuth()
+                        return
+                      }
+
+                      setReplyError('')
+                      if (replyingToId === comment.id) {
+                        setReplyingToId(null)
+                        setReplyText('')
+                        return
+                      }
+
+                      setReplyingToId(comment.id)
+                      setReplyText('')
+                    }}
+                  >
                     Trả lời
                   </button>
                 </div>
+
+                {replyingToId === comment.id && (
+                  <div style={{ marginTop: 10 }}>
+                    <textarea
+                      className="new-comment-input"
+                      placeholder={`Trả lời ${comment.author}...`}
+                      value={replyText}
+                      onChange={(e) => setReplyText(e.target.value)}
+                      rows={3}
+                    />
+                    <div className="new-comment-actions" style={{ marginTop: 8 }}>
+                      <button
+                        className="btn-post-comment"
+                        disabled={!replyText.trim() || isReplyPosting}
+                        onClick={() => void handleReply(comment.id)}
+                        type="button"
+                      >
+                        {isReplyPosting ? 'Đang gửi...' : 'Gửi trả lời'}
+                      </button>
+                      <button
+                        className="btn-reply"
+                        type="button"
+                        onClick={() => {
+                          setReplyingToId(null)
+                          setReplyText('')
+                          setReplyError('')
+                        }}
+                      >
+                        Hủy
+                      </button>
+                    </div>
+                    {replyError && <div style={{ color: '#dc2626', fontSize: 13, marginTop: 8 }}>{replyError}</div>}
+                  </div>
+                )}
 
                 {comment.replies.length > 0 && (
                   <div className="comment-replies">
