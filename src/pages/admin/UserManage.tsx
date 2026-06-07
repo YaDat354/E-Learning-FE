@@ -19,10 +19,10 @@ function UserManage({ onBackToDashboard }: Props) {
 	const [name, setName] = useState('')
 	const [email, setEmail] = useState('')
 	const [role, setRole] = useState<User['role']>('student')
-	const [editingEmail, setEditingEmail] = useState<string | null>(null)
+	const [editingUserId, setEditingUserId] = useState<string | null>(null)
 
-	const isEditing = Boolean(editingEmail)
-	const totalStudents = useMemo(() => COURSES.reduce((sum, c) => sum + c.studentCount, 0), [users.length])
+	const isEditing = Boolean(editingUserId)
+	const totalStudents = useMemo(() => COURSES.reduce((sum, c) => sum + c.studentCount, 0), [])
 
 	useEffect(() => {
 		let mounted = true
@@ -69,7 +69,7 @@ function UserManage({ onBackToDashboard }: Props) {
 		setName('')
 		setEmail('')
 		setRole('student')
-		setEditingEmail(null)
+		setEditingUserId(null)
 	}
 
 	const isEmailUsed = (value: string, exceptEmail?: string | null) =>
@@ -111,14 +111,19 @@ function UserManage({ onBackToDashboard }: Props) {
 	}
 
 	const startEdit = (user: User) => {
-		setEditingEmail(user.email)
+		if (!user.id) {
+			alert('Không tìm thấy userId để sửa người dùng này')
+			return
+		}
+
+		setEditingUserId(user.id)
 		setName(user.name)
 		setEmail(user.email)
 		setRole(user.role)
 	}
 
 	const handleSaveEdit = async () => {
-		if (!editingEmail) {
+		if (!editingUserId) {
 			return
 		}
 
@@ -130,7 +135,7 @@ function UserManage({ onBackToDashboard }: Props) {
 			return
 		}
 
-		if (isEmailUsed(normalizedEmail, editingEmail)) {
+		if (isEmailUsed(normalizedEmail, users.find((user) => user.id === editingUserId)?.email ?? null)) {
 			alert('Email đã tồn tại')
 			return
 		}
@@ -138,7 +143,7 @@ function UserManage({ onBackToDashboard }: Props) {
 		setIsSaving(true)
 		setError('')
 		try {
-			const updated = await updateAdminUser(editingEmail, {
+			const updated = await updateAdminUser(editingUserId, {
 				name: normalizedName,
 				email: normalizedEmail,
 				role,
@@ -146,7 +151,7 @@ function UserManage({ onBackToDashboard }: Props) {
 
 			setUsers((prev) =>
 				prev.map((user) =>
-					user.email === editingEmail
+					user.id === editingUserId
 						? updated
 						: user,
 				),
@@ -180,9 +185,13 @@ function UserManage({ onBackToDashboard }: Props) {
 		setIsSaving(true)
 		setError('')
 		try {
-			await deleteAdminUser(user.email)
-			setUsers((prev) => prev.filter((item) => item.email !== user.email))
-			if (editingEmail === user.email) {
+			if (!user.id) {
+				throw new Error('userId is required')
+			}
+
+			await deleteAdminUser(user.id)
+			setUsers((prev) => prev.filter((item) => item.id !== user.id))
+			if (editingUserId === user.id) {
 				resetForm()
 			}
 		} catch (deleteError) {
@@ -233,7 +242,7 @@ function UserManage({ onBackToDashboard }: Props) {
 			counts.set(course.instructor, (counts.get(course.instructor) ?? 0) + 1)
 		}
 		return counts
-	}, [users.length])
+	}, [])
 
 	const roleClass = (role: User['role']) => {
 		if (role === 'admin') return 'admin-badge admin-role-admin'
@@ -338,7 +347,7 @@ function UserManage({ onBackToDashboard }: Props) {
 							</thead>
 							<tbody>
 								{adminUsers.map((user) => (
-									<tr key={user.email}>
+									<tr key={user.id ?? user.email}>
 										<td>
 											<span className="admin-list-title">{user.name}</span>
 										</td>
@@ -377,7 +386,7 @@ function UserManage({ onBackToDashboard }: Props) {
 							</thead>
 							<tbody>
 								{teacherUsers.map((user) => (
-									<tr key={user.email}>
+									<tr key={user.id ?? user.email}>
 										<td>
 											<span className="admin-list-title">{user.name}</span>
 										</td>
@@ -419,7 +428,7 @@ function UserManage({ onBackToDashboard }: Props) {
 							</thead>
 							<tbody>
 								{studentUsers.map((user) => (
-									<tr key={user.email}>
+									<tr key={user.id ?? user.email}>
 										<td>
 											<span className="admin-list-title">{user.name}</span>
 										</td>

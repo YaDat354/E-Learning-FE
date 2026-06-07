@@ -65,12 +65,31 @@ function normalizeRole(value: unknown): User['role'] {
 
   const role = value.trim().toLowerCase()
 
-  if (role === 'admin' || role === 'role_admin') {
+  if (role === 'admin' || role === 'quan_tri' || role === 'quantri' || role === 'role_admin') {
     return 'admin'
   }
 
-  if (role === 'teacher' || role === 'instructor' || role === 'role_teacher' || role === 'role_instructor') {
+  if (
+    role === 'teacher'
+    || role === 'instructor'
+    || role === 'lecturer'
+    || role === 'giang_vien'
+    || role === 'giangvien'
+    || role === 'role_teacher'
+    || role === 'role_instructor'
+  ) {
     return 'teacher'
+  }
+
+  if (
+    role === 'student'
+    || role === 'learner'
+    || role === 'hoc_vien'
+    || role === 'hocvien'
+    || role === 'role_student'
+    || role === 'role_learner'
+  ) {
+    return 'student'
   }
 
   return 'student'
@@ -90,7 +109,14 @@ function normalizeUserProfile(payload: unknown): UserProfile {
       : 'Học viên'
 
   const email = typeof data.email === 'string' ? data.email.trim() : 'user@example.com'
-  const role = normalizeRole(data.role ?? data.userRole ?? data.roleName)
+  const role = normalizeRole(
+    data.role
+      ?? data.userRole
+      ?? data.roleName
+      ?? data.user_type
+      ?? data.userType
+      ?? data.type
+  )
 
   return {
     id,
@@ -98,6 +124,41 @@ function normalizeUserProfile(payload: unknown): UserProfile {
     email,
     role,
     avatar: typeof data.avatar === 'string' && data.avatar.trim().length > 0 ? data.avatar.trim() : undefined,
+  }
+}
+
+function mergeUniqueUsers(chunks: UserProfile[][]) {
+  const seen = new Set<string>()
+  const merged: UserProfile[] = []
+
+  for (const chunk of chunks) {
+    for (const user of chunk) {
+      const key = (user.id ?? user.email).trim().toLowerCase()
+
+      if (!key || seen.has(key)) {
+        continue
+      }
+
+      seen.add(key)
+      merged.push(user)
+    }
+  }
+
+  return merged
+}
+
+function extractPaginatedUsers(payload: unknown): { items: UserProfile[]; totalPages: number } {
+  const root = asRecord(extractObjectPayload<unknown>(payload))
+  const items = Array.isArray(root.items) ? root.items : []
+  const pagination = asRecord(root.pagination)
+  const totalPagesRaw = pagination.totalPages
+  const totalPages = typeof totalPagesRaw === 'number' && Number.isFinite(totalPagesRaw)
+    ? Math.max(1, Math.floor(totalPagesRaw))
+    : 1
+
+  return {
+    items: items.map((row) => normalizeUserProfile(row)),
+    totalPages,
   }
 }
 
@@ -131,6 +192,41 @@ export async function getAdminStudents() {
 }
 
 export async function getAdminUsers() {
+  const limit = 100
+  const chunks: UserProfile[][] = []
+
+  try {
+    let page = 1
+    let totalPages = 1
+
+    while (page <= totalPages) {
+      const { data } = await api.get('/admin/users', {
+        params: {
+          page,
+          limit,
+        },
+      })
+
+      const paginated = extractPaginatedUsers(data)
+      chunks.push(paginated.items)
+      totalPages = paginated.totalPages
+
+      if (paginated.items.length < limit) {
+        break
+      }
+
+      page += 1
+    }
+  } catch {
+    // Fallback below.
+  }
+
+  const merged = mergeUniqueUsers(chunks)
+
+  if (merged.length > 0) {
+    return merged
+  }
+
   const endpoints = ['/admin/users', '/users']
 
   for (const endpoint of endpoints) {
@@ -174,7 +270,17 @@ export async function createAdminUser(payload: { name: string; email: string; ro
   throw lastError ?? new Error('create admin user failed')
 }
 
-export async function updateAdminUser(email: string, payload: { name: string; email: string; role: User['role'] }) {
+function resolveUserId(userId: string | undefined | null) {
+  const normalizedUserId = typeof userId === 'string' ? userId.trim() : ''
+
+  if (!normalizedUserId) {
+    throw new Error('userId is required')
+  }
+
+  return encodeURIComponent(normalizedUserId)
+}
+
+export async function updateAdminUser(userId: string, payload: { name: string; email: string; role: User['role'] }) {
   const body = {
     name: payload.name,
     fullName: payload.name,
@@ -182,8 +288,8 @@ export async function updateAdminUser(email: string, payload: { name: string; em
     role: payload.role,
   }
 
-  const encodedEmail = encodeURIComponent(email)
-  const endpoints = [`/users/${encodedEmail}`, `/admin/users/${encodedEmail}`]
+  const encodedUserId = resolveUserId(userId)
+  const endpoints = [`/users/${encodedUserId}`, `/admin/users/${encodedUserId}`]
   let lastError: unknown = null
 
   for (const endpoint of endpoints) {
@@ -203,9 +309,9 @@ export async function updateAdminUser(email: string, payload: { name: string; em
   throw lastError ?? new Error('update admin user failed')
 }
 
-export async function deleteAdminUser(email: string) {
-  const encodedEmail = encodeURIComponent(email)
-  const endpoints = [`/users/${encodedEmail}`, `/admin/users/${encodedEmail}`]
+export async function deleteAdminUser(userId: string) {
+  const encodedUserId = resolveUserId(userId)
+  const endpoints = [`/users/${encodedUserId}`, `/admin/users/${encodedUserId}`]
   let lastError: unknown = null
 
   for (const endpoint of endpoints) {
