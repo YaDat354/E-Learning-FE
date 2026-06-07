@@ -188,7 +188,10 @@ function Results({ user, onOpenCourse, onOpenLesson, onBackToDashboard }: Props)
 									<article className="result-row compact" key={item.id}>
 										<div>
 											<div className="result-title">{item.assignmentTitle}</div>
-											<div className="result-meta">{formatDate(item.submittedAt)}</div>
+											<div className="result-meta">
+												{item.courseTitle ? `${item.courseTitle}${item.lessonTitle ? ` · ${item.lessonTitle}` : ''} · ` : ''}
+												{formatDate(item.submittedAt)}
+											</div>
 											{item.feedback && <p className="result-feedback">{item.feedback}</p>}
 										</div>
 										<div className="result-actions">

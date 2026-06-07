@@ -1,10 +1,10 @@
 .page-home {
   display: grid;
-  gap: 16px;
+  gap: 18px;
 }
 
 .page-home h1 {
-  font-size: 32px;
+  font-size: clamp(28px, 3.2vw, 36px);
   letter-spacing: -0.02em;
 }
 
@@ -15,12 +15,13 @@
 .component-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
+  gap: 18px;
 }
 
 .example-row {
   display: flex;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
 @media (max-width: 1100px) {

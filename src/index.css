@@ -2,13 +2,17 @@
   --bg: #f3f7fb;
   --surface: #ffffff;
   --surface-2: #eef3f8;
+  --surface-3: #e7eff8;
   --text: #1f2b3a;
   --muted: #5b6878;
   --border: #d5dee9;
   --brand: #1066d6;
+  --brand-2: #0c4ea6;
   --brand-contrast: #ffffff;
   --radius: 14px;
+  --radius-lg: 18px;
   --shadow: 0 8px 24px rgba(20, 38, 61, 0.08);
+  --shadow-lg: 0 16px 34px rgba(20, 38, 61, 0.12);
 }
 
 * {
@@ -23,9 +27,14 @@ body,
 }
 
 body {
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-family: 'Plus Jakarta Sans', 'Manrope', 'Segoe UI', 'Helvetica Neue', sans-serif;
+  line-height: 1.45;
+  letter-spacing: 0.01em;
   color: var(--text);
-  background: radial-gradient(circle at top right, #dbe9ff 0%, var(--bg) 40%);
+  background:
+    radial-gradient(1200px 500px at 105% -10%, #d9e8ff 0%, transparent 52%),
+    radial-gradient(900px 400px at -5% -20%, #e9f2ff 0%, transparent 45%),
+    var(--bg);
 }
 
 h1,
@@ -35,6 +44,50 @@ p {
   margin: 0;
 }
 
+h1,
+h2,
+h3 {
+  letter-spacing: -0.015em;
+}
+
 a {
   color: inherit;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+* {
+  transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+*:focus-visible {
+  outline: 2px solid rgba(16, 102, 214, 0.35);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: rgba(16, 102, 214, 0.2);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #edf2f8;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c2d3ea;
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #9fb9dc;
 }

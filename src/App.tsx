@@ -590,17 +590,13 @@ function App() {
     navigate({ view: 'home' })
   }
 
-  useEffect(() => {
-    if (user?.role !== 'student' && user?.role !== 'teacher') {
-      setIsChatOpen(false)
-    }
-  }, [user?.role])
+  const canUseChatWidget = user?.role === 'student' || user?.role === 'teacher'
 
-  const chatOverlay = (user?.role === 'student' || user?.role === 'teacher')
+  const chatOverlay = canUseChatWidget
     ? (
       <ChatbotWidget
         user={user}
-        isOpen={isChatOpen}
+        isOpen={canUseChatWidget && isChatOpen}
         onOpen={() => setIsChatOpen(true)}
         onClose={() => setIsChatOpen(false)}
       />

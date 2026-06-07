@@ -165,6 +165,7 @@ function CourseDetailPage({ courseId, user, isEnrolled = false, onEnrollCourse, 
     : reviews.length === 0
       ? course.rating
       : Math.round((reviews.reduce((sum, item) => sum + item.rating, 0) / reviews.length) * 10) / 10
+  const canSubmitReview = user?.role === 'student' && isEnrolled
   const actionText = user?.role === 'teacher'
     ? 'Xem dưới góc nhìn giảng viên'
     : user?.role === 'admin'
@@ -421,6 +422,86 @@ function CourseDetailPage({ courseId, user, isEnrolled = false, onEnrollCourse, 
               ))}
             </ul>
           </div>
+
+          <div className="content-section course-review-panel">
+            <div className="course-review-header">
+              <div>
+                <h3>Đánh giá khóa học</h3>
+                <p className="course-review-subtitle">Đánh giá được đồng bộ trực tiếp với hệ thống.</p>
+              </div>
+              <div className="course-review-summary">
+                <strong>{reviewAverage.toFixed(1)}</strong>
+                <StarRating rating={reviewAverage} className="hero-stars course-review-stars" />
+                <span>{reviewCount} đánh giá</span>
+              </div>
+            </div>
+
+            <div className="course-review-form">
+              {canSubmitReview ? (
+                <>
+                  <div className="course-review-field">
+                    <label>Chấm điểm nhanh</label>
+                    <div className="course-review-rating-picker" role="radiogroup" aria-label="Chọn số sao đánh giá">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          key={star}
+                          type="button"
+                          className={`course-review-star ${reviewRating >= star ? 'active' : ''}`}
+                          onClick={() => setReviewRating(star)}
+                        >
+                          ★
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="course-review-field">
+                    <label htmlFor={`course-review-${course.id}`}>Nhận xét</label>
+                    <textarea
+                      id={`course-review-${course.id}`}
+                      className="course-review-textarea"
+                      value={reviewComment}
+                      onChange={(event) => setReviewComment(event.target.value)}
+                      placeholder="Ví dụ: Nội dung rõ ràng, bài học dễ theo dõi, quiz giúp nhớ lâu hơn..."
+                      rows={4}
+                    />
+                  </div>
+
+                  <div className="course-review-actions">
+                    <button className="btn-enroll" type="button" onClick={() => void handleReviewSubmit()} disabled={isReviewSubmitting}>
+                      {isReviewSubmitting ? 'Đang gửi...' : 'Gửi đánh giá'}
+                    </button>
+                    {reviewMessage && <p className="course-review-note">{reviewMessage}</p>}
+                  </div>
+                </>
+              ) : (
+                <p className="course-review-note">
+                  {user?.role === 'teacher' || user?.role === 'admin'
+                    ? 'Chỉ học viên đã đăng ký khóa học mới có thể gửi đánh giá.'
+                    : 'Đăng ký khóa học với vai trò học viên để gửi đánh giá.'}
+                </p>
+              )}
+            </div>
+
+            <div className="course-review-list">
+              {isReviewLoading ? (
+                <div className="course-review-empty">Đang tải đánh giá...</div>
+              ) : reviews.length === 0 ? (
+                <div className="course-review-empty">Chưa có đánh giá nào cho khóa học này.</div>
+              ) : (
+                reviews.map((item) => (
+                  <article className="course-review-item" key={item.id}>
+                    <div className="course-review-item-head">
+                      <strong>{item.studentName || 'Học viên'}</strong>
+                      <span>{new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(item.createdAt))}</span>
+                    </div>
+                    <StarRating rating={item.rating} className="course-review-stars" />
+                    <p>{item.comment}</p>
+                  </article>
+                ))
+              )}
+            </div>
+          </div>
         </div>
 
         <div style={{ display: 'grid', gap: 16, alignSelf: 'start' }}>
@@ -464,7 +545,7 @@ function CourseDetailPage({ courseId, user, isEnrolled = false, onEnrollCourse, 
           <div className="content-section">
             <h3>Chủ đề</h3>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
-              {course.tags.map(tag => (
+              {course.tags.map((tag) => (
                 <span
                   key={tag}
                   style={{
@@ -476,76 +557,6 @@ function CourseDetailPage({ courseId, user, isEnrolled = false, onEnrollCourse, 
                   {tag}
                 </span>
               ))}
-            </div>
-          </div>
-
-          <div className="content-section course-review-panel">
-            <div className="course-review-header">
-              <div>
-                <h3>Đánh giá khóa học</h3>
-                <p className="course-review-subtitle">Đánh giá được đồng bộ trực tiếp với hệ thống.</p>
-              </div>
-              <div className="course-review-summary">
-                <strong>{reviewAverage.toFixed(1)}</strong>
-                <StarRating rating={reviewAverage} className="hero-stars course-review-stars" />
-                <span>{reviewCount} đánh giá</span>
-              </div>
-            </div>
-
-            <div className="course-review-form">
-              <div className="course-review-field">
-                <label>Chấm điểm nhanh</label>
-                <div className="course-review-rating-picker" role="radiogroup" aria-label="Chọn số sao đánh giá">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      key={star}
-                      type="button"
-                      className={`course-review-star ${reviewRating >= star ? 'active' : ''}`}
-                      onClick={() => setReviewRating(star)}
-                    >
-                      ★
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="course-review-field">
-                <label htmlFor={`course-review-${course.id}`}>Nhận xét</label>
-                <textarea
-                  id={`course-review-${course.id}`}
-                  className="course-review-textarea"
-                  value={reviewComment}
-                  onChange={(event) => setReviewComment(event.target.value)}
-                  placeholder="Ví dụ: Nội dung rõ ràng, bài học dễ theo dõi, quiz giúp nhớ lâu hơn..."
-                  rows={4}
-                />
-              </div>
-
-              <div className="course-review-actions">
-                <button className="btn-enroll" type="button" onClick={() => void handleReviewSubmit()} disabled={isReviewSubmitting}>
-                  {isReviewSubmitting ? 'Đang gửi...' : 'Gửi đánh giá'}
-                </button>
-                {reviewMessage && <p className="course-review-note">{reviewMessage}</p>}
-              </div>
-            </div>
-
-            <div className="course-review-list">
-              {isReviewLoading ? (
-                <div className="course-review-empty">Đang tải đánh giá...</div>
-              ) : reviews.length === 0 ? (
-                <div className="course-review-empty">Chưa có đánh giá nào cho khóa học này.</div>
-              ) : (
-                reviews.map((item) => (
-                  <article className="course-review-item" key={item.id}>
-                    <div className="course-review-item-head">
-                      <strong>{item.studentName || 'Học viên'}</strong>
-                      <span>{new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(item.createdAt))}</span>
-                    </div>
-                    <StarRating rating={item.rating} className="course-review-stars" />
-                    <p>{item.comment}</p>
-                  </article>
-                ))
-              )}
             </div>
           </div>
         </div>
