@@ -4,6 +4,7 @@ export type Route =
   | { view: 'student-dashboard' }
   | { view: 'student-courses' }
   | { view: 'student-profile' }
+  | { view: 'student-results' }
   | { view: 'teacher-dashboard' }
   | { view: 'teacher-profile' }
   | { view: 'teacher-courses' }
@@ -17,6 +18,7 @@ export type Route =
   | { view: 'admin-courses' }
   | { view: 'payment-checkout' }
   | { view: 'payment-return' }
+  | { view: 'ai-chat' }
   | { view: 'course'; courseId: string }
   | { view: 'lesson'; courseId: string; lessonId: string }
 
@@ -41,6 +43,10 @@ export function parsePath(pathname: string): Route {
 
   if (parts.length === 2 && parts[0] === 'hoc-vien' && parts[1] === 'ho-so') {
     return { view: 'student-profile' }
+  }
+
+  if (parts.length === 2 && parts[0] === 'hoc-vien' && parts[1] === 'ket-qua') {
+    return { view: 'student-results' }
   }
 
   if (parts.length === 2 && parts[0] === 'giang-vien' && parts[1] === 'dashboard') {
@@ -104,6 +110,10 @@ export function parsePath(pathname: string): Route {
     return { view: 'payment-return' }
   }
 
+  if (parts.length === 1 && parts[0] === 'tro-ly-ai') {
+    return { view: 'ai-chat' }
+  }
+
   if (parts.length === 2 && parts[0] === 'khoa-hoc') {
     return { view: 'course', courseId: decodeURIComponent(parts[1]) }
   }
@@ -138,6 +148,10 @@ export function buildPath(route: Route): string {
 
   if (route.view === 'student-profile') {
     return '/hoc-vien/ho-so'
+  }
+
+  if (route.view === 'student-results') {
+    return '/hoc-vien/ket-qua'
   }
 
   if (route.view === 'teacher-dashboard') {
@@ -190,6 +204,10 @@ export function buildPath(route: Route): string {
 
   if (route.view === 'payment-return') {
     return '/payment-return'
+  }
+
+  if (route.view === 'ai-chat') {
+    return '/tro-ly-ai'
   }
 
   if (route.view === 'course') {

@@ -1,11 +1,12 @@
 ﻿import { useEffect, useMemo, useState } from 'react'
+import type { Dispatch, SetStateAction } from 'react'
 import axios from 'axios'
 import type { Course, User } from './domain/index.ts'
 import { COURSES, createCourse, fetchMe, initializeDomainData } from './domain/index.ts'
 import { buildPath, parsePath, type Route } from './routes/appRoutes.ts'
 import { inferRoleFromEmail } from './utils/auth.ts'
 import { hasExplicitTeacherOwnership } from './utils/teacher.ts'
-import { login as loginApi, logout as logoutApi } from './services/authService.ts'
+import { login as loginApi, logout as logoutApi, register as registerApi } from './services/authService.ts'
 import { enrollCourse as enrollCourseApi, fetchMyCourses } from './services/enrollmentService.ts'
 import { createVnpayCheckout } from './services/paymentService.ts'
 import { fetchMyTeachingCourses } from './services/teacherService.ts'
@@ -18,6 +19,7 @@ import StudentCourseList from './pages/student/CourseList.tsx'
 import StudentCourseDetail from './pages/student/CourseDetail.tsx'
 import StudentLearnPage from './pages/student/LearnPage.tsx'
 import StudentProfile from './pages/student/Profile.tsx'
+import StudentResults from './pages/student/Results.tsx'
 import TeacherDashboard from './pages/teacher/Dashboard.tsx'
 import TeacherProfile from './pages/teacher/Profile.tsx'
 import TeacherCourseManage from './pages/teacher/CourseManage.tsx'
@@ -32,6 +34,7 @@ import AdminCourseManage from './pages/admin/CourseManage.tsx'
 import AdminLayout from './pages/admin/AdminLayout.tsx'
 import PaymentCheckoutPage from './pages/PaymentCheckoutPage.tsx'
 import PaymentReturnPage from './pages/PaymentReturnPage.tsx'
+import ChatbotWidget from './components/chatbot/ChatbotWidget.tsx'
 
 const STUDENT_COURSE_IDS_KEY = 'studentCourseIds'
 const PENDING_PAYMENT_CHECKOUT_KEY = 'pendingPaymentCheckout'
@@ -178,6 +181,52 @@ function mergeCoursesFromTeacherScope(scopedCourses: Course[]) {
   }
 }
 
+async function syncStudentCoursesData(
+  applyState: boolean,
+  setStudentCourseIds: Dispatch<SetStateAction<string[]>>,
+): Promise<string[]> {
+  try {
+    const ids = await fetchMyCourses()
+    if (applyState) {
+      setStudentCourseIds(ids)
+    }
+    persistStudentCourseIds(ids)
+    return ids
+  } catch {
+    const fallbackIds = readPersistedStudentCourseIds()
+    if (applyState) {
+      setStudentCourseIds(fallbackIds)
+    }
+    return fallbackIds
+  }
+}
+
+async function syncTeacherCoursesData(
+  applyState: boolean,
+  currentUser: User | null,
+  setTeacherCourseIds: Dispatch<SetStateAction<string[]>>,
+): Promise<string[]> {
+  try {
+    const scopedCourses = await fetchMyTeachingCourses()
+    const explicitOwnedCourses = currentUser?.role === 'teacher'
+      ? scopedCourses.filter((course) => hasExplicitTeacherOwnership(course, currentUser))
+      : []
+    const effectiveCourses = explicitOwnedCourses.length > 0 ? explicitOwnedCourses : scopedCourses
+
+    mergeCoursesFromTeacherScope(effectiveCourses)
+    const ids = Array.from(new Set(effectiveCourses.map((course) => course.id).filter((id) => id.length > 0)))
+    if (applyState) {
+      setTeacherCourseIds(ids)
+    }
+    return ids
+  } catch {
+    if (applyState) {
+      setTeacherCourseIds([])
+    }
+    return []
+  }
+}
+
 function App() {
   const [route, setRoute] = useState<Route>(() => parsePath(window.location.pathname))
   const [user, setUser] = useState<User | null>(null)
@@ -185,45 +234,7 @@ function App() {
   const [teacherCourseIds, setTeacherCourseIds] = useState<string[]>([])
   const [redirectAfterAuth, setRedirectAfterAuth] = useState<Route | null>(null)
   const [isBootstrapped, setIsBootstrapped] = useState(false)
-
-  const syncStudentCourses = async (applyState = true) => {
-    try {
-      const ids = await fetchMyCourses()
-      if (applyState) {
-        setStudentCourseIds(ids)
-      }
-      persistStudentCourseIds(ids)
-      return ids
-    } catch {
-      const fallbackIds = readPersistedStudentCourseIds()
-      if (applyState) {
-        setStudentCourseIds(fallbackIds)
-      }
-      return fallbackIds
-    }
-  }
-
-  const syncTeacherCourses = async (applyState = true) => {
-    try {
-      const scopedCourses = await fetchMyTeachingCourses()
-      const explicitOwnedCourses = user?.role === 'teacher'
-        ? scopedCourses.filter((course) => hasExplicitTeacherOwnership(course, user))
-        : []
-      const effectiveCourses = explicitOwnedCourses.length > 0 ? explicitOwnedCourses : scopedCourses
-
-      mergeCoursesFromTeacherScope(effectiveCourses)
-      const ids = Array.from(new Set(effectiveCourses.map((course) => course.id).filter((id) => id.length > 0)))
-      if (applyState) {
-        setTeacherCourseIds(ids)
-      }
-      return ids
-    } catch {
-      if (applyState) {
-        setTeacherCourseIds([])
-      }
-      return []
-    }
-  }
+  const [isChatOpen, setIsChatOpen] = useState(false)
 
   const navigate = (nextRoute: Route, replace = false) => {
     const nextPath = buildPath(nextRoute)
@@ -262,10 +273,10 @@ function App() {
           if (mounted) {
             setUser(nextUser)
             if (nextUser.role === 'student') {
-              await syncStudentCourses(mounted)
+              await syncStudentCoursesData(mounted, setStudentCourseIds)
               setTeacherCourseIds([])
             } else if (nextUser.role === 'teacher') {
-              await syncTeacherCourses(mounted)
+              await syncTeacherCoursesData(mounted, nextUser, setTeacherCourseIds)
               setStudentCourseIds([])
             } else {
               setStudentCourseIds([])
@@ -320,7 +331,7 @@ function App() {
       mounted = false
       window.removeEventListener('popstate', handlePopState)
     }
-  }, [])
+  }, [setStudentCourseIds, setTeacherCourseIds])
 
   useEffect(() => {
     if (!isBootstrapped || user?.role !== 'student') {
@@ -328,7 +339,7 @@ function App() {
     }
 
     const timerId = window.setTimeout(() => {
-      void syncStudentCourses()
+      void syncStudentCoursesData(true, setStudentCourseIds)
     }, 0)
 
     return () => {
@@ -351,7 +362,7 @@ function App() {
         return
       }
 
-      await syncStudentCourses()
+      await syncStudentCoursesData(true, setStudentCourseIds)
       attempt += 1
 
       if (cancelled || attempt >= maxAttempts) {
@@ -376,13 +387,13 @@ function App() {
     }
 
     const timerId = window.setTimeout(() => {
-      void syncTeacherCourses()
+      void syncTeacherCoursesData(true, user, setTeacherCourseIds)
     }, 0)
 
     return () => {
       window.clearTimeout(timerId)
     }
-  }, [isBootstrapped, user?.role])
+  }, [isBootstrapped, user, user?.role])
 
   const effectiveRoute = useMemo<Route>(() => {
     if (route.view === 'course' && !user) {
@@ -412,15 +423,52 @@ function App() {
 
     setUser(authUser)
     if (authUser.role === 'student') {
-      await syncStudentCourses()
+      await syncStudentCoursesData(true, setStudentCourseIds)
       setTeacherCourseIds([])
     } else if (authUser.role === 'teacher') {
-      await syncTeacherCourses()
+      await syncTeacherCoursesData(true, authUser, setTeacherCourseIds)
       setStudentCourseIds([])
     } else {
       setStudentCourseIds([])
       setTeacherCourseIds([])
     }
+    const defaultRoute = defaultRouteByRole(authUser.role)
+    const nextRoute = redirectAfterAuth ?? ((route.view === 'lesson' || route.view === 'course') ? route : defaultRoute)
+    setRedirectAfterAuth(null)
+    navigate(nextRoute, true)
+  }
+
+  const handleRegister = async (fullName: string, email: string, password: string) => {
+    const normalizedName = fullName.trim()
+    const normalizedEmail = email.trim().toLowerCase()
+
+    if (!normalizedName || !normalizedEmail || !password) {
+      throw new Error('missing register payload')
+    }
+
+    const authData = await registerApi(normalizedName, normalizedEmail, password, 'student')
+
+    let apiUser: unknown = null
+    try {
+      apiUser = await fetchMe()
+    } catch {
+      apiUser = null
+    }
+
+    const authUser = resolveAuthUser(apiUser ?? authData, normalizedEmail)
+
+    setUser(authUser)
+    if (authUser.role === 'student') {
+      await syncStudentCoursesData(true, setStudentCourseIds)
+      setTeacherCourseIds([])
+    } else if (authUser.role === 'teacher') {
+      await syncTeacherCoursesData(true, authUser, setTeacherCourseIds)
+      setStudentCourseIds([])
+    } else {
+      setStudentCourseIds([])
+      setTeacherCourseIds([])
+    }
+
     const defaultRoute = defaultRouteByRole(authUser.role)
     const nextRoute = redirectAfterAuth ?? ((route.view === 'lesson' || route.view === 'course') ? route : defaultRoute)
     setRedirectAfterAuth(null)
@@ -497,7 +545,7 @@ function App() {
   const handleTeacherCourseCreated = async (course: Course) => {
     try {
       await createCourse(course)
-      await syncTeacherCourses()
+      await syncTeacherCoursesData(true, user, setTeacherCourseIds)
     } catch (error) {
       console.error('create course failed', error)
       alert('Không thể tạo khóa học. Vui lòng kiểm tra backend.')
@@ -542,42 +590,66 @@ function App() {
     navigate({ view: 'home' })
   }
 
+  useEffect(() => {
+    if (user?.role !== 'student' && user?.role !== 'teacher') {
+      setIsChatOpen(false)
+    }
+  }, [user?.role])
+
+  const chatOverlay = (user?.role === 'student' || user?.role === 'teacher')
+    ? (
+      <ChatbotWidget
+        user={user}
+        isOpen={isChatOpen}
+        onOpen={() => setIsChatOpen(true)}
+        onClose={() => setIsChatOpen(false)}
+      />
+    )
+    : null
+
   if (!isBootstrapped) {
     return <div style={{ padding: 24 }}>Đang kết nối backend...</div>
   }
 
   if (effectiveRoute.view === 'auth') {
-    return <AuthPage onLogin={handleLogin} onBack={goToHome} />
+    return <AuthPage onLogin={handleLogin} onRegister={handleRegister} onBack={goToHome} />
   }
 
   if (effectiveRoute.view === 'home') {
     if (user?.role === 'student') {
       return (
-        <StudentDashboard
-          user={user}
-          myCourseIds={studentCourseIds}
-          onOpenCourse={goToCourse}
-          onOpenLesson={goToLesson}
-          onOpenCourseList={() => navigate({ view: 'student-courses' })}
-          onOpenProfile={() => navigate({ view: 'student-profile' })}
-          onLogout={handleLogout}
-        />
+        <>
+          <StudentDashboard
+            user={user}
+            myCourseIds={studentCourseIds}
+            onOpenCourse={goToCourse}
+            onOpenLesson={goToLesson}
+            onOpenCourseList={() => navigate({ view: 'student-courses' })}
+            onOpenProfile={() => navigate({ view: 'student-profile' })}
+            onOpenResults={() => navigate({ view: 'student-results' })}
+            onLogout={handleLogout}
+          />
+          {chatOverlay}
+        </>
       )
     }
 
     if (user?.role === 'teacher') {
       return (
-        <TeacherDashboard
-          user={user}
-          teacherCourseIds={teacherCourseIds}
-          onOpenProfile={() => navigate({ view: 'teacher-profile' })}
-          onGoCourses={() => navigate({ view: 'teacher-courses' })}
-          onGoCreateCourse={() => navigate({ view: 'teacher-create-course' })}
-          onGoLessons={() => navigate({ view: 'teacher-lessons' })}
-          onGoQuizzes={() => navigate({ view: 'teacher-quizzes' })}
-          onGoAssignments={() => navigate({ view: 'teacher-assignments' })}
-          onLogout={handleLogout}
-        />
+        <>
+          <TeacherDashboard
+            user={user}
+            teacherCourseIds={teacherCourseIds}
+            onOpenProfile={() => navigate({ view: 'teacher-profile' })}
+            onGoCourses={() => navigate({ view: 'teacher-courses' })}
+            onGoCreateCourse={() => navigate({ view: 'teacher-create-course' })}
+            onGoLessons={() => navigate({ view: 'teacher-lessons' })}
+            onGoQuizzes={() => navigate({ view: 'teacher-quizzes' })}
+            onGoAssignments={() => navigate({ view: 'teacher-assignments' })}
+            onLogout={handleLogout}
+          />
+          {chatOverlay}
+        </>
       )
     }
 
@@ -612,13 +684,28 @@ function App() {
     )
   }
 
+  if (effectiveRoute.view === 'ai-chat') {
+    if (!user) {
+      return <AuthPage onLogin={handleLogin} onRegister={handleRegister} onBack={goToHome} />
+    }
+
+    if (user.role !== 'student' && user.role !== 'teacher') {
+      navigate(defaultRouteByRole(user.role), true)
+      return null
+    }
+
+    setIsChatOpen(true)
+    navigate(defaultRouteByRole(user.role), true)
+    return null
+  }
+
   if (effectiveRoute.view === 'payment-return') {
     return (
       <PaymentReturnPage
         user={user}
         onGoHome={goToHome}
         onGoToStudentCourses={() => navigate({ view: 'student-courses' })}
-        onRefreshStatus={() => void syncStudentCourses()}
+        onRefreshStatus={() => void syncStudentCoursesData(true, setStudentCourseIds)}
       />
     )
   }
@@ -635,163 +722,213 @@ function App() {
 
   if (effectiveRoute.view === 'student-dashboard') {
     if (!user || user.role !== 'student') {
-      return <AuthPage onLogin={handleLogin} onBack={goToHome} />
+      return <AuthPage onLogin={handleLogin} onRegister={handleRegister} onBack={goToHome} />
     }
 
     return (
-      <StudentDashboard
-        user={user}
-        myCourseIds={studentCourseIds}
-        onOpenCourse={goToCourse}
-        onOpenLesson={goToLesson}
-        onOpenCourseList={() => navigate({ view: 'student-courses' })}
-        onOpenProfile={() => navigate({ view: 'student-profile' })}
-        onLogout={handleLogout}
-      />
+      <>
+        <StudentDashboard
+          user={user}
+          myCourseIds={studentCourseIds}
+          onOpenCourse={goToCourse}
+          onOpenLesson={goToLesson}
+          onOpenCourseList={() => navigate({ view: 'student-courses' })}
+          onOpenProfile={() => navigate({ view: 'student-profile' })}
+          onOpenResults={() => navigate({ view: 'student-results' })}
+          onLogout={handleLogout}
+        />
+        {chatOverlay}
+      </>
     )
   }
 
   if (effectiveRoute.view === 'student-courses') {
     if (!user || user.role !== 'student') {
-      return <AuthPage onLogin={handleLogin} onBack={goToHome} />
+      return <AuthPage onLogin={handleLogin} onRegister={handleRegister} onBack={goToHome} />
     }
 
     return (
-      <StudentCourseList
-        myCourseIds={studentCourseIds}
-        onOpenCourse={goToCourse}
-        onBackToDashboard={() => navigate({ view: 'student-dashboard' })}
-        onLogout={handleLogout}
-      />
+      <>
+        <StudentCourseList
+          myCourseIds={studentCourseIds}
+          onOpenCourse={goToCourse}
+          onBackToDashboard={() => navigate({ view: 'student-dashboard' })}
+          onLogout={handleLogout}
+        />
+        {chatOverlay}
+      </>
     )
   }
 
   if (effectiveRoute.view === 'student-profile') {
     if (!user || user.role !== 'student') {
-      return <AuthPage onLogin={handleLogin} onBack={goToHome} />
+      return <AuthPage onLogin={handleLogin} onRegister={handleRegister} onBack={goToHome} />
     }
 
     return (
-      <StudentProfile
-        user={user}
-        onUserUpdated={setUser}
-        onLogout={handleLogout}
-        onBackToDashboard={() => navigate({ view: 'student-dashboard' })}
-      />
+      <>
+        <StudentProfile
+          user={user}
+          onUserUpdated={setUser}
+          onLogout={handleLogout}
+          onBackToDashboard={() => navigate({ view: 'student-dashboard' })}
+          onOpenResults={() => navigate({ view: 'student-results' })}
+        />
+        {chatOverlay}
+      </>
+    )
+  }
+
+  if (effectiveRoute.view === 'student-results') {
+    if (!user || user.role !== 'student') {
+      return <AuthPage onLogin={handleLogin} onRegister={handleRegister} onBack={goToHome} />
+    }
+
+    return (
+      <>
+        <StudentResults
+          user={user}
+          onOpenCourse={goToCourse}
+          onOpenLesson={goToLesson}
+          onBackToDashboard={() => navigate({ view: 'student-dashboard' })}
+        />
+        {chatOverlay}
+      </>
     )
   }
 
   if (effectiveRoute.view === 'teacher-dashboard') {
     if (!user || user.role !== 'teacher') {
-      return <AuthPage onLogin={handleLogin} onBack={goToHome} />
+      return <AuthPage onLogin={handleLogin} onRegister={handleRegister} onBack={goToHome} />
     }
 
     return (
-      <TeacherDashboard
-        user={user}
-        teacherCourseIds={teacherCourseIds}
-        onOpenProfile={() => navigate({ view: 'teacher-profile' })}
-        onGoCourses={() => navigate({ view: 'teacher-courses' })}
-        onGoCreateCourse={() => navigate({ view: 'teacher-create-course' })}
-        onGoLessons={() => navigate({ view: 'teacher-lessons' })}
-        onGoQuizzes={() => navigate({ view: 'teacher-quizzes' })}
-        onGoAssignments={() => navigate({ view: 'teacher-assignments' })}
-        onLogout={handleLogout}
-      />
+      <>
+        <TeacherDashboard
+          user={user}
+          teacherCourseIds={teacherCourseIds}
+          onOpenProfile={() => navigate({ view: 'teacher-profile' })}
+          onGoCourses={() => navigate({ view: 'teacher-courses' })}
+          onGoCreateCourse={() => navigate({ view: 'teacher-create-course' })}
+          onGoLessons={() => navigate({ view: 'teacher-lessons' })}
+          onGoQuizzes={() => navigate({ view: 'teacher-quizzes' })}
+          onGoAssignments={() => navigate({ view: 'teacher-assignments' })}
+          onLogout={handleLogout}
+        />
+        {chatOverlay}
+      </>
     )
   }
 
   if (effectiveRoute.view === 'teacher-profile') {
     if (!user || user.role !== 'teacher') {
-      return <AuthPage onLogin={handleLogin} onBack={goToHome} />
+      return <AuthPage onLogin={handleLogin} onRegister={handleRegister} onBack={goToHome} />
     }
 
     return (
-      <TeacherProfile
-        user={user}
-        onUserUpdated={setUser}
-        onBackToDashboard={() => navigate({ view: 'teacher-dashboard' })}
-        onLogout={handleLogout}
-      />
+      <>
+        <TeacherProfile
+          user={user}
+          onUserUpdated={setUser}
+          onBackToDashboard={() => navigate({ view: 'teacher-dashboard' })}
+          onLogout={handleLogout}
+        />
+        {chatOverlay}
+      </>
     )
   }
 
   if (effectiveRoute.view === 'teacher-courses') {
     if (!user || user.role !== 'teacher') {
-      return <AuthPage onLogin={handleLogin} onBack={goToHome} />
+      return <AuthPage onLogin={handleLogin} onRegister={handleRegister} onBack={goToHome} />
     }
 
     return (
-      <TeacherCourseManage
-        user={user}
-        teacherCourseIds={teacherCourseIds}
-        onBackToDashboard={() => navigate({ view: 'teacher-dashboard' })}
-        onGoCreateCourse={() => navigate({ view: 'teacher-create-course' })}
-        onGoLessons={() => navigate({ view: 'teacher-lessons' })}
-      />
+      <>
+        <TeacherCourseManage
+          user={user}
+          teacherCourseIds={teacherCourseIds}
+          onBackToDashboard={() => navigate({ view: 'teacher-dashboard' })}
+          onGoCreateCourse={() => navigate({ view: 'teacher-create-course' })}
+          onGoLessons={() => navigate({ view: 'teacher-lessons' })}
+        />
+        {chatOverlay}
+      </>
     )
   }
 
   if (effectiveRoute.view === 'teacher-create-course') {
     if (!user || user.role !== 'teacher') {
-      return <AuthPage onLogin={handleLogin} onBack={goToHome} />
+      return <AuthPage onLogin={handleLogin} onRegister={handleRegister} onBack={goToHome} />
     }
 
     return (
-      <TeacherCreateCourse
-        user={user}
-        onCreated={handleTeacherCourseCreated}
-        onBackToDashboard={() => navigate({ view: 'teacher-courses' })}
-      />
+      <>
+        <TeacherCreateCourse
+          user={user}
+          onCreated={handleTeacherCourseCreated}
+          onBackToDashboard={() => navigate({ view: 'teacher-courses' })}
+        />
+        {chatOverlay}
+      </>
     )
   }
 
   if (effectiveRoute.view === 'teacher-lessons') {
     if (!user || user.role !== 'teacher') {
-      return <AuthPage onLogin={handleLogin} onBack={goToHome} />
+      return <AuthPage onLogin={handleLogin} onRegister={handleRegister} onBack={goToHome} />
     }
 
     return (
-      <TeacherLessonManage
-        user={user}
-        teacherCourseIds={teacherCourseIds}
-        onBackToDashboard={() => navigate({ view: 'teacher-dashboard' })}
-        onOpenLessonDiscussion={goToLesson}
-      />
+      <>
+        <TeacherLessonManage
+          user={user}
+          teacherCourseIds={teacherCourseIds}
+          onBackToDashboard={() => navigate({ view: 'teacher-dashboard' })}
+          onOpenLessonDiscussion={goToLesson}
+        />
+        {chatOverlay}
+      </>
     )
   }
 
   if (effectiveRoute.view === 'teacher-quizzes') {
     if (!user || user.role !== 'teacher') {
-      return <AuthPage onLogin={handleLogin} onBack={goToHome} />
+      return <AuthPage onLogin={handleLogin} onRegister={handleRegister} onBack={goToHome} />
     }
 
     return (
-      <TeacherQuizManage
-        user={user}
-        teacherCourseIds={teacherCourseIds}
-        onBackToDashboard={() => navigate({ view: 'teacher-dashboard' })}
-      />
+      <>
+        <TeacherQuizManage
+          user={user}
+          teacherCourseIds={teacherCourseIds}
+          onBackToDashboard={() => navigate({ view: 'teacher-dashboard' })}
+        />
+        {chatOverlay}
+      </>
     )
   }
 
   if (effectiveRoute.view === 'teacher-assignments') {
     if (!user || user.role !== 'teacher') {
-      return <AuthPage onLogin={handleLogin} onBack={goToHome} />
+      return <AuthPage onLogin={handleLogin} onRegister={handleRegister} onBack={goToHome} />
     }
 
     return (
-      <TeacherAssignmentManage
-        user={user}
-        teacherCourseIds={teacherCourseIds}
-        onBackToDashboard={() => navigate({ view: 'teacher-dashboard' })}
-      />
+      <>
+        <TeacherAssignmentManage
+          user={user}
+          teacherCourseIds={teacherCourseIds}
+          onBackToDashboard={() => navigate({ view: 'teacher-dashboard' })}
+        />
+        {chatOverlay}
+      </>
     )
   }
 
   if (effectiveRoute.view === 'admin-dashboard') {
     if (!user || user.role !== 'admin') {
-      return <AuthPage onLogin={handleLogin} onBack={goToHome} />
+      return <AuthPage onLogin={handleLogin} onRegister={handleRegister} onBack={goToHome} />
     }
 
     return (
@@ -816,7 +953,7 @@ function App() {
 
   if (effectiveRoute.view === 'admin-stats') {
     if (!user || user.role !== 'admin') {
-      return <AuthPage onLogin={handleLogin} onBack={goToHome} />
+      return <AuthPage onLogin={handleLogin} onRegister={handleRegister} onBack={goToHome} />
     }
 
     return (
@@ -836,7 +973,7 @@ function App() {
 
   if (effectiveRoute.view === 'admin-users') {
     if (!user || user.role !== 'admin') {
-      return <AuthPage onLogin={handleLogin} onBack={goToHome} />
+      return <AuthPage onLogin={handleLogin} onRegister={handleRegister} onBack={goToHome} />
     }
 
     return (
@@ -858,7 +995,7 @@ function App() {
 
   if (effectiveRoute.view === 'admin-courses') {
     if (!user || user.role !== 'admin') {
-      return <AuthPage onLogin={handleLogin} onBack={goToHome} />
+      return <AuthPage onLogin={handleLogin} onRegister={handleRegister} onBack={goToHome} />
     }
 
     return (
@@ -881,15 +1018,18 @@ function App() {
   if (effectiveRoute.view === 'course') {
     if (user?.role === 'student') {
       return (
-        <StudentCourseDetail
-          courseId={effectiveRoute.courseId}
-          user={user}
-          isEnrolled={studentCourseIds.includes(effectiveRoute.courseId)}
-          onEnrollCourse={handleEnrollCourse}
-          onGoAuth={goToAuth}
-          onBack={() => navigate({ view: 'student-courses' })}
-          onGoToLesson={goToLesson}
-        />
+        <>
+          <StudentCourseDetail
+            courseId={effectiveRoute.courseId}
+            user={user}
+            isEnrolled={studentCourseIds.includes(effectiveRoute.courseId)}
+            onEnrollCourse={handleEnrollCourse}
+            onGoAuth={goToAuth}
+            onBack={() => navigate({ view: 'student-courses' })}
+            onGoToLesson={goToLesson}
+          />
+          {chatOverlay}
+        </>
       )
     }
 
@@ -911,14 +1051,17 @@ function App() {
 
     if (user?.role === 'student') {
       return (
-        <StudentLearnPage
-          courseId={courseId}
-          lessonId={lessonId}
-          user={user}
-          onBack={() => navigate({ view: 'course', courseId })}
-          onGoToLesson={goToLesson}
-          onGoAuth={goToAuth}
-        />
+        <>
+          <StudentLearnPage
+            courseId={courseId}
+            lessonId={lessonId}
+            user={user}
+            onBack={() => navigate({ view: 'course', courseId })}
+            onGoToLesson={goToLesson}
+            onGoAuth={goToAuth}
+          />
+          {chatOverlay}
+        </>
       )
     }
 
@@ -934,7 +1077,7 @@ function App() {
     )
   }
 
-  return (
+  const fallbackView = (
     <HomePage
       user={user}
       onGoAuth={goToAuth}
@@ -942,6 +1085,15 @@ function App() {
       onLogout={handleLogout}
     />
   )
+
+  return user?.role === 'student' || user?.role === 'teacher'
+    ? (
+      <>
+        {fallbackView}
+        {chatOverlay}
+      </>
+    )
+    : fallbackView
 }
 
 export default App

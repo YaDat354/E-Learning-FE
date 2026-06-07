@@ -10,9 +10,10 @@ type ProfileProps = {
 	onUserUpdated?: (user: User) => void
 	onLogout: () => void
 	onBackToDashboard: () => void
+	onOpenResults: () => void
 }
 
-function Profile({ user, onUserUpdated, onLogout, onBackToDashboard }: ProfileProps) {
+function Profile({ user, onUserUpdated, onLogout, onBackToDashboard, onOpenResults }: ProfileProps) {
 	const [fullName, setFullName] = useState(user.name)
 	const [avatar, setAvatar] = useState('')
 	const [email, setEmail] = useState(user.email)
@@ -143,6 +144,7 @@ function Profile({ user, onUserUpdated, onLogout, onBackToDashboard }: ProfilePr
 					</div>
 					<div className="student-toolbar">
 						<button className="student-btn ghost" onClick={onBackToDashboard}>Về Dashboard</button>
+						<button className="student-btn ghost" onClick={onOpenResults}>Kết quả học tập</button>
 						<button className="student-btn danger" onClick={onLogout}>Đăng xuất</button>
 					</div>
 				</header>

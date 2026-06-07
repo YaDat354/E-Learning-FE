@@ -12,20 +12,22 @@ type DashboardProps = {
 	onOpenLesson: (courseId: string, lessonId: string) => void
 	onOpenCourseList: () => void
 	onOpenProfile: () => void
+	onOpenResults: () => void
 	onLogout: () => void
 }
 
-function Dashboard({ user, myCourseIds, onOpenCourse, onOpenLesson, onOpenCourseList, onOpenProfile, onLogout }: DashboardProps) {
+function Dashboard({ user, myCourseIds, onOpenCourse, onOpenLesson, onOpenCourseList, onOpenProfile, onOpenResults, onLogout }: DashboardProps) {
 	const [nextLessons, setNextLessons] = useState<ContinueLearningItem[]>([])
 	const [isContinueLoading, setIsContinueLoading] = useState(true)
-	const [heroTitle, setHeroTitle] = useState('Chinh phuc bai hoc moi moi ngay')
-	const [heroSubtitle, setHeroSubtitle] = useState('Theo doi tien do, mo bai hoc tiep theo va giu nhiet hoc tap voi bang dieu khien moi.')
+	const [heroTitle, setHeroTitle] = useState('Chinh phục bài học mới mỗi ngày')
+	const [heroSubtitle, setHeroSubtitle] = useState('Theo dõi tiến độ, mở bài học tiếp theo và giữ nhiệt học tập với bảng điều khiển mới.')
 	const [heroImageUrl, setHeroImageUrl] = useState('/student-hero.svg')
 	const [heroHighlights, setHeroHighlights] = useState<string[]>([])
 
 	const myCourses = COURSES.filter((course) => myCourseIds.includes(course.id))
 	const totalLessons = myCourses.reduce((sum, course) => sum + course.lessons.length, 0)
 	const freeLessons = myCourses.reduce((sum, course) => sum + course.lessons.filter((lesson) => lesson.isFree).length, 0)
+	const myCourseIdsKey = myCourseIds.join('|')
 	const fallbackNextLessons = useMemo(() => {
 		return myCourses.map((course) => ({
 			courseId: course.id,
@@ -65,7 +67,7 @@ function Dashboard({ user, myCourseIds, onOpenCourse, onOpenLesson, onOpenCourse
 		return () => {
 			mounted = false
 		}
-	}, [myCourseIds.join('|')])
+	}, [myCourseIdsKey])
 
 	const displayNextLessons = nextLessons.length > 0 ? nextLessons : fallbackNextLessons
 	const displayHeroHighlights = heroHighlights.length > 0
@@ -138,6 +140,7 @@ function Dashboard({ user, myCourseIds, onOpenCourse, onOpenLesson, onOpenCourse
 					<div className="student-toolbar">
 						<button className="student-btn ghost" onClick={onOpenCourseList}>Danh sách khóa học</button>
 						<button className="student-btn ghost" onClick={onOpenProfile}>Hồ sơ</button>
+						<button className="student-btn ghost" onClick={onOpenResults}>Kết quả học tập</button>
 						<button
 							className="student-btn"
 							onClick={() => firstCourseId && onOpenCourse(firstCourseId)}

@@ -716,6 +716,125 @@ export async function fetchCourseDetail(courseId: string) {
 	return normalizeCourseDetail(data)
 }
 
+export type CourseReviewItem = {
+	id: string
+	courseId: string
+	studentId: string
+	studentName: string
+	studentEmail?: string
+	studentAvatar?: string
+	rating: number
+	comment: string
+	createdAt: string
+	updatedAt?: string
+}
+
+export type CourseReviewSummary = {
+	courseId?: string
+	totalReviews: number
+	averageRating: number
+	stars: {
+		1: number
+		2: number
+		3: number
+		4: number
+		5: number
+	}
+}
+
+export type CourseReviewListResponse = {
+	items: CourseReviewItem[]
+	summary: CourseReviewSummary
+	pagination: {
+		page: number
+		limit: number
+		totalItems: number
+		totalPages: number
+	}
+}
+
+function normalizeReviewStars(value: unknown): CourseReviewSummary['stars'] {
+	const raw = asRecord(value)
+
+	return {
+		1: readNumberFromSources([raw], ['1', 'star_1']) ?? 0,
+		2: readNumberFromSources([raw], ['2', 'star_2']) ?? 0,
+		3: readNumberFromSources([raw], ['3', 'star_3']) ?? 0,
+		4: readNumberFromSources([raw], ['4', 'star_4']) ?? 0,
+		5: readNumberFromSources([raw], ['5', 'star_5']) ?? 0,
+	}
+}
+
+function normalizeCourseReviewSummary(value: unknown, fallbackCourseId?: string): CourseReviewSummary {
+	const raw = asRecord(value)
+	const courseId = readIdentifierFromSources([raw], ['courseId', 'course_id']) || fallbackCourseId
+
+	return {
+		courseId,
+		totalReviews: readNumberFromSources([raw], ['totalReviews', 'total_reviews', 'reviewCount']) ?? 0,
+		averageRating: readNumberFromSources([raw], ['averageRating', 'average_rating', 'rating']) ?? 0,
+		stars: normalizeReviewStars(raw.stars),
+	}
+}
+
+function normalizeCourseReviewItem(value: unknown, fallbackCourseId: string): CourseReviewItem {
+	const raw = asRecord(value)
+	const rating = readNumberFromSources([raw], ['rating']) ?? 0
+
+	return {
+		id: readIdentifierFromSources([raw], ['id', '_id']) || `review-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+		courseId: readIdentifierFromSources([raw], ['courseId', 'course_id']) || fallbackCourseId,
+		studentId: readIdentifierFromSources([raw], ['studentId', 'student_id']) || '',
+		studentName: readStringFromSources([raw], ['studentName', 'student_name']) || 'Học viên',
+		studentEmail: readStringFromSources([raw], ['studentEmail', 'student_email']) || undefined,
+		studentAvatar: readStringFromSources([raw], ['studentAvatar', 'student_avatar']) || undefined,
+		rating: Math.min(5, Math.max(1, Math.round(rating))),
+		comment: readStringFromSources([raw], ['comment']) || '',
+		createdAt: readStringFromSources([raw], ['createdAt', 'created_at']) || new Date().toISOString(),
+		updatedAt: readStringFromSources([raw], ['updatedAt', 'updated_at']) || undefined,
+	}
+}
+
+export async function fetchCourseReviews(courseId: string, options: { page?: number; limit?: number } = {}): Promise<CourseReviewListResponse> {
+	const page = Math.max(1, options.page ?? 1)
+	const limit = Math.min(100, Math.max(1, options.limit ?? 10))
+	const endpoint = `/courses/${encodeURIComponent(courseId)}/reviews`
+	const { data } = await api.get(endpoint, { params: { page, limit } })
+	const payload = asRecord(extractObjectPayload(data))
+	const items = Array.isArray(payload.items)
+		? payload.items.map((item) => normalizeCourseReviewItem(item, courseId))
+		: []
+	const summary = normalizeCourseReviewSummary(payload.summary, courseId)
+	const paginationRaw = asRecord(payload.pagination)
+
+	return {
+		items,
+		summary,
+		pagination: {
+			page: readNumberFromSources([paginationRaw], ['page']) ?? page,
+			limit: readNumberFromSources([paginationRaw], ['limit']) ?? limit,
+			totalItems: readNumberFromSources([paginationRaw], ['totalItems', 'total_items']) ?? items.length,
+			totalPages: readNumberFromSources([paginationRaw], ['totalPages', 'total_pages']) ?? 1,
+		},
+	}
+}
+
+export async function fetchCourseReviewSummary(courseId: string): Promise<CourseReviewSummary> {
+	const endpoint = `/courses/${encodeURIComponent(courseId)}/reviews/summary`
+	const { data } = await api.get(endpoint)
+	return normalizeCourseReviewSummary(extractObjectPayload(data), courseId)
+}
+
+export async function createCourseReview(courseId: string, payload: { rating: number; comment: string }): Promise<CourseReviewItem> {
+	const endpoint = `/courses/${encodeURIComponent(courseId)}/reviews`
+	const { data } = await api.post(endpoint, {
+		rating: Math.min(5, Math.max(1, Math.round(payload.rating))),
+		comment: payload.comment.trim(),
+	})
+
+	return normalizeCourseReviewItem(extractObjectPayload(data), courseId)
+}
+
 export async function fetchLessonDetail(courseId: string, lessonId: string) {
 	const endpoints = [
 		`/lessons/${encodeURIComponent(lessonId)}`,

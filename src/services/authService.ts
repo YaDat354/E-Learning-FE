@@ -41,6 +41,17 @@ export async function login(email: string, password: string) {
   return data
 }
 
+export async function register(fullName: string, email: string, password: string, role: 'student' | 'teacher' | 'admin' = 'student') {
+  const { data } = await api.post('/auth/register', { fullName, email, password, role })
+  const token = extractToken(data)
+
+  if (token) {
+    localStorage.setItem('accessToken', token)
+  }
+
+  return data
+}
+
 export function logout() {
   localStorage.removeItem('accessToken')
 }

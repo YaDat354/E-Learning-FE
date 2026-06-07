@@ -2,7 +2,7 @@ import LoginForm from '../../components/auth/LoginForm.tsx'
 import AuthShell from './AuthShell.tsx'
 import type { AuthPageProps } from './types.ts'
 
-type LoginProps = AuthPageProps & {
+type LoginProps = Pick<AuthPageProps, 'onLogin' | 'onBack'> & {
   onSwitchToRegister: () => void
 }
 

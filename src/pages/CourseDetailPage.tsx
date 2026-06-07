@@ -1,7 +1,15 @@
+import axios from 'axios'
 import { useEffect, useState } from 'react'
 import { ROLE_LABELS } from '../domain/index.ts'
 import type { Course, User } from '../domain/index.ts'
-import { fetchCourseDetail } from '../services/courseService.ts'
+import {
+  createCourseReview,
+  fetchCourseDetail,
+  fetchCourseReviews,
+  fetchCourseReviewSummary,
+  type CourseReviewItem,
+  type CourseReviewSummary,
+} from '../services/courseService.ts'
 import StarRating from '../components/ui/StarRating.tsx'
 import '../styles/course.css'
 
@@ -55,6 +63,13 @@ function CourseDetailPage({ courseId, user, isEnrolled = false, onEnrollCourse, 
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isReviewLoading, setIsReviewLoading] = useState(true)
+  const [isReviewSubmitting, setIsReviewSubmitting] = useState(false)
+  const [reviews, setReviews] = useState<CourseReviewItem[]>([])
+  const [reviewSummary, setReviewSummary] = useState<CourseReviewSummary | null>(null)
+  const [reviewRating, setReviewRating] = useState(5)
+  const [reviewComment, setReviewComment] = useState('')
+  const [reviewMessage, setReviewMessage] = useState('')
 
   useEffect(() => {
     let mounted = true
@@ -88,6 +103,51 @@ function CourseDetailPage({ courseId, user, isEnrolled = false, onEnrollCourse, 
     }
   }, [courseId])
 
+  useEffect(() => {
+    let mounted = true
+
+    const loadCourseReviewsData = async () => {
+      setIsReviewLoading(true)
+      setReviewMessage('')
+
+      const [listResult, summaryResult] = await Promise.allSettled([
+        fetchCourseReviews(courseId, { page: 1, limit: 12 }),
+        fetchCourseReviewSummary(courseId),
+      ])
+
+      if (!mounted) {
+        return
+      }
+
+      if (listResult.status === 'fulfilled') {
+        setReviews(listResult.value.items)
+        setReviewSummary(listResult.value.summary)
+      } else {
+        console.error('load course reviews failed', listResult.reason)
+        setReviews([])
+        setReviewSummary(null)
+      }
+
+      if (summaryResult.status === 'fulfilled') {
+        setReviewSummary(summaryResult.value)
+      } else {
+        console.error('load course review summary failed', summaryResult.reason)
+      }
+
+      setIsReviewLoading(false)
+    }
+
+    void loadCourseReviewsData()
+
+    setReviewRating(5)
+    setReviewComment('')
+    setReviewMessage('')
+
+    return () => {
+      mounted = false
+    }
+  }, [courseId])
+
   if (isLoading) {
     return <div style={{ padding: 24 }}>Đang tải chi tiết khóa học...</div>
   }
@@ -99,6 +159,12 @@ function CourseDetailPage({ courseId, user, isEnrolled = false, onEnrollCourse, 
   const hasPricing = course.price > 0 && course.originalPrice > 0
   const discount = hasPricing ? Math.round((1 - course.price / course.originalPrice) * 100) : 0
   const learningItems = WHAT_YOU_LEARN[course.id] ?? WHAT_YOU_LEARN['giao-tiep']
+  const reviewCount = reviewSummary?.totalReviews ?? (reviews.length > 0 ? reviews.length : course.reviewCount)
+  const reviewAverage = reviewSummary
+    ? reviewSummary.averageRating
+    : reviews.length === 0
+      ? course.rating
+      : Math.round((reviews.reduce((sum, item) => sum + item.rating, 0) / reviews.length) * 10) / 10
   const actionText = user?.role === 'teacher'
     ? 'Xem dưới góc nhìn giảng viên'
     : user?.role === 'admin'
@@ -139,6 +205,78 @@ function CourseDetailPage({ courseId, user, isEnrolled = false, onEnrollCourse, 
     }
 
     onGoToLesson(course.id, previewLesson.id)
+  }
+
+  const handleReviewSubmit = async () => {
+    if (!user) {
+      setReviewMessage('Vui lòng đăng nhập để gửi đánh giá khóa học.')
+      return
+    }
+
+    if (user.role !== 'student') {
+      setReviewMessage('Chỉ học viên mới có thể gửi đánh giá cho khóa học.')
+      return
+    }
+
+    if (!isEnrolled) {
+      setReviewMessage('Bạn cần đăng ký khóa học trước khi gửi đánh giá.')
+      return
+    }
+
+    if (reviewComment.trim().length === 0) {
+      setReviewMessage('Hãy viết một vài nhận xét ngắn trước khi gửi đánh giá.')
+      return
+    }
+
+    if (reviewComment.trim().length > 1000) {
+      setReviewMessage('Nhận xét tối đa 1000 ký tự.')
+      return
+    }
+
+    try {
+      setIsReviewSubmitting(true)
+      setReviewMessage('')
+
+      await createCourseReview(course.id, {
+        rating: reviewRating,
+        comment: reviewComment,
+      })
+
+      const [list, summary] = await Promise.all([
+        fetchCourseReviews(course.id, { page: 1, limit: 12 }),
+        fetchCourseReviewSummary(course.id),
+      ])
+
+      setReviews(list.items)
+      setReviewSummary(summary)
+      setReviewRating(5)
+      setReviewComment('')
+      setReviewMessage('Đánh giá đã được gửi thành công.')
+    } catch (submitError) {
+      console.error('submit course review failed', submitError)
+
+      if (axios.isAxiosError(submitError)) {
+        const status = submitError.response?.status
+        if (status === 401) {
+          setReviewMessage('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.')
+          return
+        }
+
+        if (status === 403) {
+          setReviewMessage('Bạn cần đăng ký khóa học trước khi gửi đánh giá.')
+          return
+        }
+
+        if (status === 400) {
+          setReviewMessage('Dữ liệu đánh giá chưa hợp lệ. Vui lòng kiểm tra lại nội dung.')
+          return
+        }
+      }
+
+      setReviewMessage('Không thể gửi đánh giá lúc này. Vui lòng thử lại sau.')
+    } finally {
+      setIsReviewSubmitting(false)
+    }
   }
 
   return (
@@ -186,9 +324,9 @@ function CourseDetailPage({ courseId, user, isEnrolled = false, onEnrollCourse, 
 
             <div className="course-hero-meta">
               <div className="hero-rating">
-                <strong style={{ color: '#fbbf24' }}>{course.rating}</strong>
-                <StarRating rating={course.rating} className="hero-stars" />
-                <span>({course.reviewCount.toLocaleString()} đánh giá)</span>
+                <strong style={{ color: '#fbbf24' }}>{reviewAverage.toFixed(1)}</strong>
+                <StarRating rating={reviewAverage} className="hero-stars" />
+                <span>({reviewCount.toLocaleString()} đánh giá)</span>
               </div>
               <span>Học viên: {course.studentCount.toLocaleString()}</span>
               <span>Thời lượng: {course.duration}</span>
@@ -338,6 +476,76 @@ function CourseDetailPage({ courseId, user, isEnrolled = false, onEnrollCourse, 
                   {tag}
                 </span>
               ))}
+            </div>
+          </div>
+
+          <div className="content-section course-review-panel">
+            <div className="course-review-header">
+              <div>
+                <h3>Đánh giá khóa học</h3>
+                <p className="course-review-subtitle">Đánh giá được đồng bộ trực tiếp với hệ thống.</p>
+              </div>
+              <div className="course-review-summary">
+                <strong>{reviewAverage.toFixed(1)}</strong>
+                <StarRating rating={reviewAverage} className="hero-stars course-review-stars" />
+                <span>{reviewCount} đánh giá</span>
+              </div>
+            </div>
+
+            <div className="course-review-form">
+              <div className="course-review-field">
+                <label>Chấm điểm nhanh</label>
+                <div className="course-review-rating-picker" role="radiogroup" aria-label="Chọn số sao đánh giá">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      className={`course-review-star ${reviewRating >= star ? 'active' : ''}`}
+                      onClick={() => setReviewRating(star)}
+                    >
+                      ★
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="course-review-field">
+                <label htmlFor={`course-review-${course.id}`}>Nhận xét</label>
+                <textarea
+                  id={`course-review-${course.id}`}
+                  className="course-review-textarea"
+                  value={reviewComment}
+                  onChange={(event) => setReviewComment(event.target.value)}
+                  placeholder="Ví dụ: Nội dung rõ ràng, bài học dễ theo dõi, quiz giúp nhớ lâu hơn..."
+                  rows={4}
+                />
+              </div>
+
+              <div className="course-review-actions">
+                <button className="btn-enroll" type="button" onClick={() => void handleReviewSubmit()} disabled={isReviewSubmitting}>
+                  {isReviewSubmitting ? 'Đang gửi...' : 'Gửi đánh giá'}
+                </button>
+                {reviewMessage && <p className="course-review-note">{reviewMessage}</p>}
+              </div>
+            </div>
+
+            <div className="course-review-list">
+              {isReviewLoading ? (
+                <div className="course-review-empty">Đang tải đánh giá...</div>
+              ) : reviews.length === 0 ? (
+                <div className="course-review-empty">Chưa có đánh giá nào cho khóa học này.</div>
+              ) : (
+                reviews.map((item) => (
+                  <article className="course-review-item" key={item.id}>
+                    <div className="course-review-item-head">
+                      <strong>{item.studentName || 'Học viên'}</strong>
+                      <span>{new Intl.DateTimeFormat('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(item.createdAt))}</span>
+                    </div>
+                    <StarRating rating={item.rating} className="course-review-stars" />
+                    <p>{item.comment}</p>
+                  </article>
+                ))
+              )}
             </div>
           </div>
         </div>
