@@ -730,7 +730,7 @@ export async function fetchCourses() {
 	try {
 		const resp = await api.get('/api/v1/courses')
 		data = resp.data
-	} catch (err) {
+	} catch {
 		const resp = await api.get('/courses')
 		data = resp.data
 	}
@@ -743,7 +743,7 @@ export async function fetchCourseDetail(courseId: string) {
 	try {
 		const resp = await api.get(`/api/v1/courses/${encodeURIComponent(courseId)}`)
 		return normalizeCourseDetail(resp.data)
-	} catch (err) {
+	} catch {
 		const resp = await api.get(`/courses/${encodeURIComponent(courseId)}`)
 		return normalizeCourseDetail(resp.data)
 	}
@@ -952,7 +952,7 @@ export async function createCourse(payload: Omit<Course, 'id'> & { id?: string }
 	try {
 		const resp = await api.post('/api/v1/courses', requestPayload)
 		data = resp.data
-	} catch (err) {
+	} catch {
 		const resp = await api.post('/courses', requestPayload)
 		data = resp.data
 	}

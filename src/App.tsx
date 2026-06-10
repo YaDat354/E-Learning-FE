@@ -171,11 +171,18 @@ function mergeCoursesFromTeacherScope(scopedCourses: Course[]) {
     const index = COURSES.findIndex((course) => course.id === scopedCourse.id)
 
     if (index >= 0) {
-      COURSES[index] = {
-        ...COURSES[index],
+      const currentCourse = COURSES[index]
+      const mergedCourse = {
+        ...currentCourse,
         ...scopedCourse,
-        lessons: scopedCourse.lessons.length > 0 ? scopedCourse.lessons : COURSES[index].lessons,
+        lessons: scopedCourse.lessons.length > 0 ? scopedCourse.lessons : currentCourse.lessons,
       }
+
+      if (currentCourse.studentCount > 0 && scopedCourse.studentCount === 0) {
+        mergedCourse.studentCount = currentCourse.studentCount
+      }
+
+      COURSES[index] = mergedCourse
       continue
     }
 

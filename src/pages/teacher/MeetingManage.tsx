@@ -45,6 +45,11 @@ function MeetingManage({ user, teacherCourseIds, onBackToDashboard }: Props) {
       return
     }
 
+    if (selectedCourseStudentCount === 0) {
+      setError('Khóa học này hiện chưa có học viên đăng ký, không thể gửi thông báo cuộc họp.')
+      return
+    }
+
     if (!title.trim()) {
       setError('Vui lòng nhập tiêu đề cuộc họp')
       return
@@ -61,6 +66,14 @@ function MeetingManage({ user, teacherCourseIds, onBackToDashboard }: Props) {
 
     try {
       const normalizedMeetingUrl = meetingUrl.trim() ? ensureAbsoluteUrl(meetingUrl.trim()) : undefined
+
+      console.log('Creating meeting with:', {
+        courseId: selectedCourseId,
+        title: title.trim(),
+        description: description.trim(),
+        scheduledAt,
+        meetingUrl: normalizedMeetingUrl,
+      })
 
       await createMeetingNotification({
         courseId: selectedCourseId,
@@ -96,7 +109,11 @@ function MeetingManage({ user, teacherCourseIds, onBackToDashboard }: Props) {
       setTimeout(() => setSuccess(''), 5000)
     } catch (err) {
       console.error('Failed to create meeting notification', err)
-      setError('Không thể gửi thông báo. Vui lòng thử lại.')
+      let errorMessage = 'Không thể gửi thông báo. Vui lòng thử lại.'
+      if (err instanceof Error) {
+        errorMessage = `${errorMessage} (${err.message})`
+      }
+      setError(errorMessage)
     } finally {
       setIsLoading(false)
     }
@@ -228,11 +245,16 @@ function MeetingManage({ user, teacherCourseIds, onBackToDashboard }: Props) {
             <button
               className="teacher-btn"
               onClick={handleCreateMeeting}
-              disabled={!selectedCourseId || isLoading}
+              disabled={!selectedCourseId || isLoading || selectedCourseStudentCount === 0}
               style={{ width: '100%' }}
             >
               {isLoading ? 'Đang gửi...' : 'Gửi thông báo cuộc họp'}
             </button>
+            {selectedCourseStudentCount === 0 && (
+              <p className="teacher-list-meta" style={{ marginTop: 8, color: '#b91c1c' }}>
+                Khóa học này chưa có học viên đăng ký. Vui lòng thêm học viên trước khi tạo cuộc họp.
+              </p>
+            )}
           </div>
 
           <div>

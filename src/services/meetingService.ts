@@ -1,4 +1,4 @@
-import axios from 'axios'
+import api from '../lib/api.ts'
 
 export type MeetingNotification = {
   id: string
@@ -14,17 +14,15 @@ export type MeetingNotification = {
 
 export async function fetchMeetingNotifications(userId: string): Promise<MeetingNotification[]> {
   const endpoints = [
-    `/api/v1/meetings/notifications`,
-    `/api/meetings/notifications`,
-    `/api/students/${userId}/meetings`,
-    `/meetings/notifications/${userId}`,
+    `/students/${userId}/meeting-notifications`,
+    `/meetings/notifications`,
   ]
 
   let lastError: unknown
 
   for (const endpoint of endpoints) {
     try {
-      const response = await axios.get<MeetingNotification[]>(endpoint)
+      const response = await api.get<MeetingNotification[]>(endpoint)
       return response.data ?? []
     } catch (error) {
       lastError = error
@@ -33,40 +31,40 @@ export async function fetchMeetingNotifications(userId: string): Promise<Meeting
   }
 
   console.error('All meeting notification endpoints failed', lastError)
-  return []
+  throw lastError ?? new Error('meeting notifications route not found')
 }
 
 export async function fetchMeetingNotification(notificationId: string): Promise<MeetingNotification | null> {
   const endpoints = [
-    `/api/v1/meetings/notifications/${notificationId}`,
-    `/api/meetings/notifications/${notificationId}`,
-    `/meetings/${notificationId}`,
-  ]
-
-  for (const endpoint of endpoints) {
-    try {
-      const response = await axios.get<MeetingNotification>(endpoint)
-      return response.data ?? null
-    } catch (error) {
-      console.debug(`Endpoint ${endpoint} failed, trying next...`)
-    }
-  }
-
-  return null
-}
-
-export async function acknowledgeMeetingNotification(notificationId: string): Promise<void> {
-  const endpoints = [
-    `/api/v1/meetings/notifications/${notificationId}/acknowledge`,
-    `/api/meetings/notifications/${notificationId}/acknowledge`,
-    `/meetings/${notificationId}/read`,
+    `/meetings/notifications/${notificationId}`,
   ]
 
   let lastError: unknown
 
   for (const endpoint of endpoints) {
     try {
-      await axios.post(endpoint)
+      const response = await api.get<MeetingNotification>(endpoint)
+      return response.data ?? null
+    } catch (error) {
+      lastError = error
+      console.debug(`Endpoint ${endpoint} failed, trying next...`)
+    }
+  }
+
+  console.error('All fetch meeting endpoints failed', lastError)
+  throw lastError ?? new Error('meeting notification route not found')
+}
+
+export async function acknowledgeMeetingNotification(notificationId: string): Promise<void> {
+  const endpoints = [
+    `/meetings/notifications/${notificationId}/acknowledge`,
+  ]
+
+  let lastError: unknown
+
+  for (const endpoint of endpoints) {
+    try {
+      await api.post(endpoint)
       return
     } catch (error) {
       lastError = error
@@ -75,6 +73,7 @@ export async function acknowledgeMeetingNotification(notificationId: string): Pr
   }
 
   console.error('All acknowledge endpoints failed', lastError)
+  throw lastError ?? new Error('acknowledge meeting notification route not found')
 }
 
 export async function createMeetingNotification(payload: {
@@ -84,32 +83,20 @@ export async function createMeetingNotification(payload: {
   scheduledAt: string
   meetingUrl?: string
 }): Promise<MeetingNotification> {
-  const endpoints = [
-    `/api/v1/courses/${payload.courseId}/meeting-notifications`,
-    `/api/courses/${payload.courseId}/meeting-notifications`,
-    `/courses/${payload.courseId}/meetings`,
-    `/api/v1/meetings`,
-    `/api/meetings`,
-  ]
-
-  let lastError: unknown
-
-  for (const endpoint of endpoints) {
-    try {
-      const response = await axios.post<MeetingNotification>(endpoint, {
+  try {
+    const response = await api.post<MeetingNotification>(
+      `/courses/${payload.courseId}/meeting-notifications`,
+      {
         title: payload.title,
         description: payload.description,
         scheduledAt: payload.scheduledAt,
         meetingUrl: payload.meetingUrl,
         courseId: payload.courseId,
-      })
-      return response.data
-    } catch (error) {
-      lastError = error
-      console.debug(`Endpoint ${endpoint} failed, trying next...`)
-    }
+      }
+    )
+    return response.data
+  } catch (error) {
+    console.error('Failed to create meeting notification', error)
+    throw error
   }
-
-  console.error('All create meeting endpoints failed', lastError)
-  throw lastError
 }

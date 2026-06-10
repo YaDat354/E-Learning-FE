@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { User } from '../../domain/index.ts'
 import { fetchMeetingNotifications, acknowledgeMeetingNotification, type MeetingNotification } from '../../services/meetingService.ts'
 import './MeetingNotificationsPage.css'
@@ -25,36 +25,28 @@ function MeetingNotificationsPage({ user, onBackToDashboard }: Props) {
   const [error, setError] = useState('')
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
-  useEffect(() => {
-    let mounted = true
+  const loadNotifications = useCallback(async () => {
+    setIsLoading(true)
+    setError('')
 
-    const loadNotifications = async () => {
-      setIsLoading(true)
-      setError('')
-
-      try {
-        const data = await fetchMeetingNotifications(user.id ?? '')
-        if (mounted) {
-          setNotifications(data)
-        }
-      } catch (err) {
-        console.error('Failed to load meeting notifications', err)
-        if (mounted) {
-          setError('Không thể tải thông báo cuộc họp. Vui lòng thử lại.')
-        }
-      } finally {
-        if (mounted) {
-          setIsLoading(false)
-        }
-      }
-    }
-
-    void loadNotifications()
-
-    return () => {
-      mounted = false
+    try {
+      const data = await fetchMeetingNotifications(user.id ?? '')
+      setNotifications(data)
+    } catch (err) {
+      console.error('Failed to load meeting notifications', err)
+      setError('Không thể tải thông báo cuộc họp. Vui lòng thử lại.')
+    } finally {
+      setIsLoading(false)
     }
   }, [user.id])
+
+  const handleRefresh = async () => {
+    await loadNotifications()
+  }
+
+  useEffect(() => {
+    void loadNotifications()
+  }, [loadNotifications])
 
   const handleAcknowledge = async (notificationId: string) => {
     try {
@@ -104,6 +96,9 @@ function MeetingNotificationsPage({ user, onBackToDashboard }: Props) {
             </p>
           </div>
           <div className="student-toolbar">
+            <button className="student-btn ghost" onClick={handleRefresh} disabled={isLoading}>
+              {isLoading ? 'Đang tải...' : 'Làm mới'}
+            </button>
             <button className="student-btn ghost" onClick={onBackToDashboard}>
               Về Dashboard
             </button>
