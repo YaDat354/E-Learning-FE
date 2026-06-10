@@ -726,15 +726,27 @@ function normalizeCourseDetail(payload: unknown): Course {
 }
 
 export async function fetchCourses() {
-	const { data } = await api.get('/courses')
+	let data: unknown
+	try {
+		const resp = await api.get('/api/v1/courses')
+		data = resp.data
+	} catch (err) {
+		const resp = await api.get('/courses')
+		data = resp.data
+	}
 	const rows = extractArrayPayload<Course>(data)
 	replaceArray(COURSES, rows.map(normalizeCourse))
 	return COURSES
 }
 
 export async function fetchCourseDetail(courseId: string) {
-	const { data } = await api.get(`/courses/${encodeURIComponent(courseId)}`)
-	return normalizeCourseDetail(data)
+	try {
+		const resp = await api.get(`/api/v1/courses/${encodeURIComponent(courseId)}`)
+		return normalizeCourseDetail(resp.data)
+	} catch (err) {
+		const resp = await api.get(`/courses/${encodeURIComponent(courseId)}`)
+		return normalizeCourseDetail(resp.data)
+	}
 }
 
 export type CourseReviewItem = {
@@ -936,7 +948,14 @@ export async function createCourse(payload: Omit<Course, 'id'> & { id?: string }
 		tags: payload.tags,
 		lessons: payload.lessons,
 	}
-	const { data } = await api.post('/courses', requestPayload)
+	let data: unknown
+	try {
+		const resp = await api.post('/api/v1/courses', requestPayload)
+		data = resp.data
+	} catch (err) {
+		const resp = await api.post('/courses', requestPayload)
+		data = resp.data
+	}
 	const normalized = normalizeCourse(extractObjectPayload<Course>(data))
 	COURSES.unshift(normalized)
 	return normalized
@@ -978,6 +997,9 @@ export async function updateCourse(courseId: string, payload: Partial<Course>) {
 export async function fetchCourseStudents(courseId: string) {
 	const encodedCourseId = encodeURIComponent(courseId)
 	const endpoints = [
+		`/api/v1/courses/${encodedCourseId}/students`,
+		`/api/v1/courses/${encodedCourseId}/enrollments`,
+		`/api/v1/courses/${encodedCourseId}/enrolled-students`,
 		`/courses/${encodedCourseId}/students`,
 		`/courses/${encodedCourseId}/enrollments`,
 		`/courses/${encodedCourseId}/enrolled-students`,
@@ -1008,6 +1030,7 @@ export async function fetchCourseStudents(courseId: string) {
 export async function deleteCourse(courseId: string) {
 	const encodedCourseId = encodeURIComponent(courseId)
 	const deleteTargets = [
+		`/api/v1/courses/${encodedCourseId}`,
 		`/courses/${encodedCourseId}`,
 		`/course/${encodedCourseId}`,
 	]
@@ -1049,6 +1072,8 @@ export async function updateLesson(lessonId: string, payload: Partial<Lesson>) {
 	const encodedCourseId = encodeURIComponent(course.id)
 	const encodedLessonId = encodeURIComponent(lessonId)
 	const updateTargets: Array<{ method: 'patch' | 'put'; endpoint: string }> = [
+		{ method: 'patch', endpoint: `/api/v1/lessons/${encodedLessonId}` },
+		{ method: 'patch', endpoint: `/api/v1/courses/${encodedCourseId}/lessons/${encodedLessonId}` },
 		{ method: 'patch', endpoint: `/lessons/${encodedLessonId}` },
 		{ method: 'patch', endpoint: `/courses/${encodedCourseId}/lessons/${encodedLessonId}` },
 		{ method: 'patch', endpoint: `/courses/${encodedCourseId}/lesson/${encodedLessonId}` },
@@ -1114,6 +1139,8 @@ export async function deleteLesson(lessonId: string) {
 	const encodedCourseId = encodeURIComponent(course.id)
 	const encodedLessonId = encodeURIComponent(lessonId)
 	const deleteTargets = [
+		`/api/v1/lessons/${encodedLessonId}`,
+		`/api/v1/courses/${encodedCourseId}/lessons/${encodedLessonId}`,
 		`/lessons/${encodedLessonId}`,
 		`/courses/${encodedCourseId}/lessons/${encodedLessonId}`,
 		`/courses/${encodedCourseId}/lesson/${encodedLessonId}`,

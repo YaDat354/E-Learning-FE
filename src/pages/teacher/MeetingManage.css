@@ -1,0 +1,40 @@
+/* Minimal styles for MeetingManage page */
+.teacher-page {
+  padding: 16px;
+}
+
+.teacher-shell {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.teacher-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.teacher-panel {
+  background: #ffffff;
+  padding: 16px;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+
+.teacher-input {
+  padding: 8px 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  font-family: inherit;
+}
+
+.teacher-select {
+  padding: 8px 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+}
+
+.teacher-empty {
+  color: #6b7280;
+}

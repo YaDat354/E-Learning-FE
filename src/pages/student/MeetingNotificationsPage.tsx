@@ -1,6 +1,18 @@
 import { useEffect, useState } from 'react'
 import type { User } from '../../domain/index.ts'
 import { fetchMeetingNotifications, acknowledgeMeetingNotification, type MeetingNotification } from '../../services/meetingService.ts'
+import './MeetingNotificationsPage.css'
+
+function ensureAbsoluteUrl(url?: string) {
+  if (!url) return ''
+  const trimmed = url.trim()
+  // If already has a scheme (http:, https:, mailto:, etc.), return as-is
+  if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(trimmed)) return trimmed
+  // Protocol-relative e.g. //zoom.us/.. -> keep current protocol
+  if (trimmed.startsWith('//')) return `${window.location.protocol}${trimmed}`
+  // Otherwise assume https
+  return `https://${trimmed}`
+}
 
 type Props = {
   user: User
@@ -163,7 +175,7 @@ function MeetingNotificationsPage({ user, onBackToDashboard }: Props) {
                         <p style={{ fontSize: '0.875rem', margin: '0 0 12px 0' }}>
                           <strong>Link cuộc họp:</strong>{' '}
                           <a
-                            href={notification.meetingUrl}
+                            href={ensureAbsoluteUrl(notification.meetingUrl)}
                             target="_blank"
                             rel="noopener noreferrer"
                             style={{ color: '#3b82f6', textDecoration: 'none' }}

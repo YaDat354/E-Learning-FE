@@ -13,10 +13,11 @@ type DashboardProps = {
 	onOpenCourseList: () => void
 	onOpenProfile: () => void
 	onOpenResults: () => void
+	onOpenMeetings: () => void
 	onLogout: () => void
 }
 
-function Dashboard({ user, myCourseIds, onOpenCourse, onOpenLesson, onOpenCourseList, onOpenProfile, onOpenResults, onLogout }: DashboardProps) {
+function Dashboard({ user, myCourseIds, onOpenCourse, onOpenLesson, onOpenCourseList, onOpenProfile, onOpenResults, onOpenMeetings, onLogout }: DashboardProps) {
 	const [nextLessons, setNextLessons] = useState<ContinueLearningItem[]>([])
 	const [isContinueLoading, setIsContinueLoading] = useState(true)
 	const [heroTitle, setHeroTitle] = useState('Chinh phục bài học mới mỗi ngày')
@@ -140,8 +141,7 @@ function Dashboard({ user, myCourseIds, onOpenCourse, onOpenLesson, onOpenCourse
 					<div className="student-toolbar">
 						<button className="student-btn ghost" onClick={onOpenCourseList}>Danh sách khóa học</button>
 						<button className="student-btn ghost" onClick={onOpenProfile}>Hồ sơ</button>
-						<button className="student-btn ghost" onClick={onOpenResults}>Kết quả học tập</button>
-						<button
+						<button className="student-btn ghost" onClick={onOpenResults}>Kết quả học tập</button>					<button className="student-btn ghost" onClick={onOpenMeetings}>Lịch họp</button>						<button
 							className="student-btn"
 							onClick={() => firstCourseId && onOpenCourse(firstCourseId)}
 							disabled={!firstCourseId}

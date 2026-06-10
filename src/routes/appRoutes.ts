@@ -5,6 +5,7 @@ export type Route =
   | { view: 'student-courses' }
   | { view: 'student-profile' }
   | { view: 'student-results' }
+  | { view: 'student-meetings' }
   | { view: 'teacher-dashboard' }
   | { view: 'teacher-profile' }
   | { view: 'teacher-courses' }
@@ -48,6 +49,10 @@ export function parsePath(pathname: string): Route {
 
   if (parts.length === 2 && parts[0] === 'hoc-vien' && parts[1] === 'ket-qua') {
     return { view: 'student-results' }
+  }
+
+  if (parts.length === 2 && parts[0] === 'hoc-vien' && parts[1] === 'lich-hop') {
+    return { view: 'student-meetings' }
   }
 
   if (parts.length === 2 && parts[0] === 'giang-vien' && parts[1] === 'dashboard') {
@@ -157,6 +162,10 @@ export function buildPath(route: Route): string {
 
   if (route.view === 'student-results') {
     return '/hoc-vien/ket-qua'
+  }
+
+  if (route.view === 'student-meetings') {
+    return '/hoc-vien/lich-hop'
   }
 
   if (route.view === 'teacher-dashboard') {

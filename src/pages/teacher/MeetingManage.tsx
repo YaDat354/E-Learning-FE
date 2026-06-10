@@ -5,6 +5,14 @@ import { getTeacherCourses } from '../../utils/teacher.ts'
 import { createMeetingNotification, type MeetingNotification } from '../../services/meetingService.ts'
 import './MeetingManage.css'
 
+function ensureAbsoluteUrl(url?: string) {
+  if (!url) return ''
+  const trimmed = url.trim()
+  if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(trimmed)) return trimmed
+  if (trimmed.startsWith('//')) return `${window.location.protocol}${trimmed}`
+  return `https://${trimmed}`
+}
+
 type Props = {
   user: User
   teacherCourseIds: string[]
@@ -52,12 +60,14 @@ function MeetingManage({ user, teacherCourseIds, onBackToDashboard }: Props) {
     setSuccess('')
 
     try {
+      const normalizedMeetingUrl = meetingUrl.trim() ? ensureAbsoluteUrl(meetingUrl.trim()) : undefined
+
       await createMeetingNotification({
         courseId: selectedCourseId,
         title: title.trim(),
         description: description.trim(),
         scheduledAt,
-        meetingUrl: meetingUrl.trim(),
+        meetingUrl: normalizedMeetingUrl,
       })
 
       setSuccess(`Đã gửi thông báo cuộc họp cho ${selectedCourseStudentCount} học viên trong khóa học`)
@@ -75,7 +85,7 @@ function MeetingManage({ user, teacherCourseIds, onBackToDashboard }: Props) {
           title: title.trim(),
           description: description.trim(),
           scheduledAt,
-          meetingUrl: meetingUrl.trim(),
+          meetingUrl: normalizedMeetingUrl ?? '',
           status: 'pending',
           teacherName: user.name,
         },
@@ -265,7 +275,7 @@ function MeetingManage({ user, teacherCourseIds, onBackToDashboard }: Props) {
                       <p style={{ fontSize: '0.875rem', margin: 0 }}>
                         <strong>Link:</strong>{' '}
                         <a
-                          href={meeting.meetingUrl}
+                          href={ensureAbsoluteUrl(meeting.meetingUrl)}
                           target="_blank"
                           rel="noopener noreferrer"
                           style={{ color: '#3b82f6', textDecoration: 'none' }}

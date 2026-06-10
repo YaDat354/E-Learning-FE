@@ -1,0 +1,112 @@
+/* MeetingNotificationsPage styles */
+/* Reuse common student page styles */
+.student-page {
+  min-height: 100vh;
+  background: #f8fafc;
+  color: #0f172a;
+  padding: 28px;
+}
+
+.student-shell {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: grid;
+  gap: 18px;
+}
+
+.student-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.student-header > div:first-child {
+  flex: 1;
+}
+
+.student-title {
+  font-size: 24px;
+  font-weight: 700;
+  margin: 0 0 4px 0;
+}
+
+.student-subtitle {
+  font-size: 14px;
+  color: #64748b;
+  margin: 0;
+}
+
+.student-toolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.student-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  background: #2563eb;
+  color: #fff;
+  transition: all 200ms;
+}
+
+.student-btn:hover {
+  background: #1d4ed8;
+}
+
+.student-btn.ghost {
+  background: transparent;
+  color: #0f172a;
+  border: 1px solid #e2e8f0;
+}
+
+.student-btn.ghost:hover {
+  background: #f1f5f9;
+}
+
+.student-btn.danger {
+  background: #ef4444;
+}
+
+.student-btn.danger:hover {
+  background: #dc2626;
+}
+
+.student-panel {
+  background: #fff;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.student-empty {
+  color: #94a3b8;
+  text-align: center;
+  padding: 24px;
+  font-size: 14px;
+}
+
+.student-action-btn {
+  padding: 6px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+  color: #0f172a;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 200ms;
+}
+
+.student-action-btn:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+}

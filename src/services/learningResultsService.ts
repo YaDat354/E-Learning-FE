@@ -46,11 +46,14 @@ export type LearningResultsPayload = {
 }
 
 const QUIZ_RESULTS_ENDPOINTS = [
+	'/api/v1/me/quiz-results',
+	'/api/v1/quiz-results/me',
 	'/quiz-results/me',
 	'/me/quiz-results',
 ]
 
 const QUIZ_SUBMIT_ENDPOINTS = [
+	'/api/v1/quiz-results',
 	'/quiz-results',
 	'/quiz-results/me',
 	'/me/quiz-results',

@@ -20,6 +20,7 @@ import StudentCourseDetail from './pages/student/CourseDetail.tsx'
 import StudentLearnPage from './pages/student/LearnPage.tsx'
 import StudentProfile from './pages/student/Profile.tsx'
 import StudentResults from './pages/student/Results.tsx'
+import StudentMeetingNotifications from './pages/student/MeetingNotificationsPage.tsx'
 import TeacherDashboard from './pages/teacher/Dashboard.tsx'
 import TeacherProfile from './pages/teacher/Profile.tsx'
 import TeacherCourseManage from './pages/teacher/CourseManage.tsx'
@@ -27,6 +28,7 @@ import TeacherCreateCourse from './pages/teacher/CreateCourse.tsx'
 import TeacherLessonManage from './pages/teacher/LessonManage.tsx'
 import TeacherQuizManage from './pages/teacher/QuizManage.tsx'
 import TeacherAssignmentManage from './pages/teacher/AssignmentManage.tsx'
+import TeacherMeetingManage from './pages/teacher/MeetingManage.tsx'
 import AdminDashboard from './pages/admin/Dashboard.tsx'
 import AdminStats from './pages/admin/Stats.tsx'
 import AdminUserManage from './pages/admin/UserManage.tsx'
@@ -623,6 +625,7 @@ function App() {
             onOpenCourseList={() => navigate({ view: 'student-courses' })}
             onOpenProfile={() => navigate({ view: 'student-profile' })}
             onOpenResults={() => navigate({ view: 'student-results' })}
+            onOpenMeetings={() => navigate({ view: 'student-meetings' })}
             onLogout={handleLogout}
           />
           {chatOverlay}
@@ -732,6 +735,7 @@ function App() {
           onOpenCourseList={() => navigate({ view: 'student-courses' })}
           onOpenProfile={() => navigate({ view: 'student-profile' })}
           onOpenResults={() => navigate({ view: 'student-results' })}
+          onOpenMeetings={() => navigate({ view: 'student-meetings' })}
           onLogout={handleLogout}
         />
         {chatOverlay}
@@ -787,6 +791,22 @@ function App() {
           user={user}
           onOpenCourse={goToCourse}
           onOpenLesson={goToLesson}
+          onBackToDashboard={() => navigate({ view: 'student-dashboard' })}
+        />
+        {chatOverlay}
+      </>
+    )
+  }
+
+  if (effectiveRoute.view === 'student-meetings') {
+    if (!user || user.role !== 'student') {
+      return <AuthPage onLogin={handleLogin} onRegister={handleRegister} onBack={goToHome} />
+    }
+
+    return (
+      <>
+        <StudentMeetingNotifications
+          user={user}
           onBackToDashboard={() => navigate({ view: 'student-dashboard' })}
         />
         {chatOverlay}
@@ -898,6 +918,23 @@ function App() {
     return (
       <>
         <TeacherQuizManage
+          user={user}
+          teacherCourseIds={teacherCourseIds}
+          onBackToDashboard={() => navigate({ view: 'teacher-dashboard' })}
+        />
+        {chatOverlay}
+      </>
+    )
+  }
+
+  if (effectiveRoute.view === 'teacher-meetings') {
+    if (!user || user.role !== 'teacher') {
+      return <AuthPage onLogin={handleLogin} onRegister={handleRegister} onBack={goToHome} />
+    }
+
+    return (
+      <>
+        <TeacherMeetingManage
           user={user}
           teacherCourseIds={teacherCourseIds}
           onBackToDashboard={() => navigate({ view: 'teacher-dashboard' })}
