@@ -368,7 +368,14 @@ function LessonPage({ courseId, lessonId, user, onBack, onGoToLesson, onGoAuth }
                   <h3>Quiz</h3>
                   {lesson.quiz ? (
                     <div style={{ border: '1px solid #e5eaf1', borderRadius: 16, padding: 16, background: '#fafcff' }}>
-                      <QuizPanel quiz={lesson.quiz} />
+                      <QuizPanel
+                        quiz={lesson.quiz}
+                        courseId={courseId}
+                        courseTitle={course?.title}
+                        lessonId={lesson.id}
+                        lessonTitle={lesson.title}
+                        userRole={user?.role ?? null}
+                      />
                     </div>
                   ) : (
                     <div style={{ padding: '14px 16px', border: '1px dashed #d6deea', borderRadius: 14, color: 'var(--muted)' }}>

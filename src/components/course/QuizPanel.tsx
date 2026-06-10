@@ -1,15 +1,23 @@
 import { useState } from 'react'
 import type { Lesson } from '../../domain/index.ts'
+import { submitQuizResult } from '../../services/learningResultsService.ts'
 
 type QuizPanelProps = {
   quiz: NonNullable<Lesson['quiz']>
+  courseId?: string
+  courseTitle?: string
+  lessonId?: string
+  lessonTitle?: string
+  userRole?: string | null
 }
 
-function QuizPanel({ quiz }: QuizPanelProps) {
+function QuizPanel({ quiz, courseId, courseTitle, lessonId, lessonTitle, userRole }: QuizPanelProps) {
   const [answers, setAnswers] = useState<(number | null)[]>(
     Array(quiz.questions.length).fill(null)
   )
   const [submitted, setSubmitted] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [submitError, setSubmitError] = useState('')
 
   const score = submitted
     ? answers.filter((answer, i) => answer === quiz.questions[i].correctIndex).length
@@ -18,6 +26,34 @@ function QuizPanel({ quiz }: QuizPanelProps) {
   const handleRetry = () => {
     setAnswers(Array(quiz.questions.length).fill(null))
     setSubmitted(false)
+    setSubmitError('')
+  }
+
+  const handleSubmit = async () => {
+    const nextScore = answers.filter((answer, i) => answer === quiz.questions[i].correctIndex).length
+    setIsSaving(true)
+    setSubmitError('')
+
+    try {
+      if (userRole === 'student' && courseId && lessonId) {
+        await submitQuizResult({
+          quizId: lessonId,
+          quizTitle: quiz.title,
+          score: nextScore,
+          submittedAt: new Date().toISOString(),
+          courseId,
+          courseTitle,
+          lessonId,
+          lessonTitle,
+        })
+      }
+    } catch (error) {
+      console.warn('submit quiz result failed', error)
+      setSubmitError('Không thể lưu kết quả quiz lên server. Kết quả vẫn được hiển thị tạm thời.')
+    } finally {
+      setSubmitted(true)
+      setIsSaving(false)
+    }
   }
 
   if (submitted) {
@@ -110,13 +146,14 @@ function QuizPanel({ quiz }: QuizPanelProps) {
       <div className="quiz-actions">
         <button
           className="btn-quiz-submit"
-          disabled={answers.some((answer) => answer === null)}
-          onClick={() => setSubmitted(true)}
+          disabled={answers.some((answer) => answer === null) || isSaving}
+          onClick={() => void handleSubmit()}
           type="button"
         >
-          Nộp quiz
+          {isSaving ? 'Đang gửi...' : 'Nộp quiz'}
         </button>
       </div>
+      {submitError && <div className="quiz-error">{submitError}</div>}
     </div>
   )
 }

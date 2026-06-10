@@ -1,3 +1,4 @@
+import axios from 'axios'
 import api from '../lib/api.ts'
 
 type QuizSummary = {
@@ -90,24 +91,74 @@ function toQuizDetail(value: unknown): QuizDetail {
   }
 }
 
+async function requestWithFallback<T>(method: 'get' | 'post' | 'patch' | 'put', endpoints: string[], payload?: unknown) {
+  let lastError: unknown = null
+
+  for (const endpoint of endpoints) {
+    try {
+      const response = method === 'get'
+        ? await api.get(endpoint)
+        : method === 'post'
+          ? await api.post(endpoint, payload)
+          : method === 'patch'
+            ? await api.patch(endpoint, payload)
+            : await api.put(endpoint, payload)
+
+      return response.data as T
+    } catch (error) {
+      if (axios.isAxiosError(error) && (error.response?.status === 404 || error.response?.status === 405)) {
+        lastError = error
+        continue
+      }
+      throw error
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error('quiz endpoint not found')
+}
+
 export async function fetchCourseQuizzes(courseId: string): Promise<QuizSummary[]> {
-  const { data } = await api.get(`/courses/${encodeURIComponent(courseId)}/quizzes`)
+  const endpoints = [
+    `/courses/${encodeURIComponent(courseId)}/quizzes`,
+    `/courses/${encodeURIComponent(courseId)}/quiz`,
+    `/course/${encodeURIComponent(courseId)}/quizzes`,
+    `/course/${encodeURIComponent(courseId)}/quiz`,
+  ]
+  const data = await requestWithFallback<unknown>('get', endpoints)
   const rows = extractArrayPayload<unknown>(data)
   return rows.map((row) => toQuizSummary(row)).filter((item) => item.id.length > 0)
 }
 
 export async function fetchQuizDetail(courseId: string, quizId: string): Promise<QuizDetail> {
-  const { data } = await api.get(`/courses/${encodeURIComponent(courseId)}/quizzes/${encodeURIComponent(quizId)}`)
+  const endpoints = [
+    `/courses/${encodeURIComponent(courseId)}/quizzes/${encodeURIComponent(quizId)}`,
+    `/courses/${encodeURIComponent(courseId)}/quiz/${encodeURIComponent(quizId)}`,
+    `/course/${encodeURIComponent(courseId)}/quizzes/${encodeURIComponent(quizId)}`,
+    `/course/${encodeURIComponent(courseId)}/quiz/${encodeURIComponent(quizId)}`,
+  ]
+  const data = await requestWithFallback<unknown>('get', endpoints)
   return toQuizDetail(data)
 }
 
 export async function createCourseQuiz(courseId: string, payload: { title: string; description?: string; timeLimit?: number }): Promise<QuizSummary> {
-  const { data } = await api.post(`/courses/${encodeURIComponent(courseId)}/quizzes`, payload)
+  const endpoints = [
+    `/courses/${encodeURIComponent(courseId)}/quizzes`,
+    `/courses/${encodeURIComponent(courseId)}/quiz`,
+    `/course/${encodeURIComponent(courseId)}/quizzes`,
+    `/course/${encodeURIComponent(courseId)}/quiz`,
+  ]
+  const data = await requestWithFallback<unknown>('post', endpoints, payload)
   return toQuizSummary(extractObjectPayload(data))
 }
 
 export async function updateCourseQuiz(courseId: string, quizId: string, payload: { title?: string; description?: string; timeLimit?: number }): Promise<QuizSummary> {
-  const { data } = await api.patch(`/courses/${encodeURIComponent(courseId)}/quizzes/${encodeURIComponent(quizId)}`, payload)
+  const endpoints = [
+    `/courses/${encodeURIComponent(courseId)}/quizzes/${encodeURIComponent(quizId)}`,
+    `/courses/${encodeURIComponent(courseId)}/quiz/${encodeURIComponent(quizId)}`,
+    `/course/${encodeURIComponent(courseId)}/quizzes/${encodeURIComponent(quizId)}`,
+    `/course/${encodeURIComponent(courseId)}/quiz/${encodeURIComponent(quizId)}`,
+  ]
+  const data = await requestWithFallback<unknown>('patch', endpoints, payload)
   return toQuizSummary(extractObjectPayload(data))
 }
 

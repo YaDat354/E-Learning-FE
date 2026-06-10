@@ -641,6 +641,7 @@ function App() {
             onGoCreateCourse={() => navigate({ view: 'teacher-create-course' })}
             onGoLessons={() => navigate({ view: 'teacher-lessons' })}
             onGoQuizzes={() => navigate({ view: 'teacher-quizzes' })}
+            onGoMeetings={() => navigate({ view: 'teacher-meetings' })}
             onGoAssignments={() => navigate({ view: 'teacher-assignments' })}
             onLogout={handleLogout}
           />
@@ -808,6 +809,7 @@ function App() {
           onGoCreateCourse={() => navigate({ view: 'teacher-create-course' })}
           onGoLessons={() => navigate({ view: 'teacher-lessons' })}
           onGoQuizzes={() => navigate({ view: 'teacher-quizzes' })}
+          onGoMeetings={() => navigate({ view: 'teacher-meetings' })} 
           onGoAssignments={() => navigate({ view: 'teacher-assignments' })}
           onLogout={handleLogout}
         />

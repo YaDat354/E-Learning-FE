@@ -11,6 +11,7 @@ export type Route =
   | { view: 'teacher-create-course' }
   | { view: 'teacher-lessons' }
   | { view: 'teacher-quizzes' }
+  | { view: 'teacher-meetings' }
   | { view: 'teacher-assignments' }
   | { view: 'admin-dashboard' }
   | { view: 'admin-stats' }
@@ -71,6 +72,10 @@ export function parsePath(pathname: string): Route {
 
   if (parts.length === 2 && parts[0] === 'giang-vien' && parts[1] === 'quiz') {
     return { view: 'teacher-quizzes' }
+  }
+
+  if (parts.length === 2 && parts[0] === 'giang-vien' && parts[1] === 'lich-hop') {
+    return { view: 'teacher-meetings' }
   }
 
   if (parts.length === 2 && parts[0] === 'giang-vien' && parts[1] === 'bai-tap') {
@@ -176,6 +181,10 @@ export function buildPath(route: Route): string {
 
   if (route.view === 'teacher-quizzes') {
     return '/giang-vien/quiz'
+  }
+
+  if (route.view === 'teacher-meetings') {
+    return '/giang-vien/lich-hop'
   }
 
   if (route.view === 'teacher-assignments') {

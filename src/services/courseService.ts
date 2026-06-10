@@ -51,6 +51,27 @@ function extractObjectPayload<T>(payload: unknown): T {
 	return payload as T
 }
 
+function normalizeCourseStudent(row: unknown): User {
+	const data = asRecord(extractObjectPayload<unknown>(row))
+	const readString = (value: unknown) => {
+		if (typeof value === 'string') {
+			return value.trim()
+		}
+		return ''
+	}
+
+	const id = readString(data.id) || readString(data._id) || readString(data.studentId) || readString(data.student_id)
+	const name = readString(data.fullName) || readString(data.name) || readString(data.username) || 'Học viên'
+	const email = readString(data.email) || readString(data.userEmail) || readString(data.user_email) || 'unknown@example.com'
+
+	return {
+		id,
+		name,
+		email,
+		role: 'student',
+	}
+}
+
 function normalizeCourseLevel(value: unknown): Course['level'] {
 	if (typeof value !== 'string') {
 		return 'Cơ bản'
@@ -905,6 +926,15 @@ export async function createCourse(payload: Omit<Course, 'id'> & { id?: string }
 		title: payload.title,
 		level: serializeCourseLevel(payload.level),
 		description: payload.description,
+		category: payload.category,
+		categoryColor: payload.categoryColor,
+		duration: payload.duration,
+		price: payload.price,
+		originalPrice: payload.originalPrice,
+		instructor: payload.instructor,
+		instructorEmail: payload.instructorEmail,
+		tags: payload.tags,
+		lessons: payload.lessons,
 	}
 	const { data } = await api.post('/courses', requestPayload)
 	const normalized = normalizeCourse(extractObjectPayload<Course>(data))
@@ -917,6 +947,13 @@ export async function updateCourse(courseId: string, payload: Partial<Course>) {
 		title: payload.title,
 		level: serializeCourseLevel(payload.level),
 		description: payload.description,
+		category: payload.category,
+		duration: payload.duration,
+		price: payload.price,
+		originalPrice: payload.originalPrice,
+		instructor: payload.instructor,
+		instructorEmail: payload.instructorEmail,
+		tags: payload.tags,
 	}
 
 	let normalized: Course
@@ -936,6 +973,71 @@ export async function updateCourse(courseId: string, payload: Partial<Course>) {
 	}
 
 	return normalized
+}
+
+export async function fetchCourseStudents(courseId: string) {
+	const encodedCourseId = encodeURIComponent(courseId)
+	const endpoints = [
+		`/courses/${encodedCourseId}/students`,
+		`/courses/${encodedCourseId}/enrollments`,
+		`/courses/${encodedCourseId}/enrolled-students`,
+		`/course/${encodedCourseId}/students`,
+		`/course/${encodedCourseId}/enrollments`,
+	]
+
+	let lastError: unknown = null
+
+	for (const endpoint of endpoints) {
+		try {
+			const response = await api.get(endpoint)
+			const rows = extractArrayPayload<unknown>(response.data)
+			return rows.map(normalizeCourseStudent)
+		} catch (error) {
+			if (axios.isAxiosError(error) && (error.response?.status === 404 || error.response?.status === 405)) {
+				lastError = error
+				continue
+			}
+
+			throw error
+		}
+	}
+
+	throw lastError instanceof Error ? lastError : new Error('course students route not found')
+}
+
+export async function deleteCourse(courseId: string) {
+	const encodedCourseId = encodeURIComponent(courseId)
+	const deleteTargets = [
+		`/courses/${encodedCourseId}`,
+		`/course/${encodedCourseId}`,
+	]
+
+	let lastError: unknown = null
+	let deleted = false
+
+	for (const endpoint of deleteTargets) {
+		try {
+			await api.delete(endpoint)
+			deleted = true
+			break
+		} catch (error) {
+			if (axios.isAxiosError(error) && (error.response?.status === 404 || error.response?.status === 405)) {
+				lastError = error
+				continue
+			}
+
+			throw error
+		}
+	}
+
+	if (!deleted) {
+		throw lastError instanceof Error ? lastError : new Error('course delete route not found')
+	}
+
+	const index = COURSES.findIndex((course) => course.id === courseId)
+	if (index >= 0) {
+		COURSES.splice(index, 1)
+	}
 }
 
 export async function updateLesson(lessonId: string, payload: Partial<Lesson>) {

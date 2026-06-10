@@ -18,6 +18,23 @@ type Props = {
   onBackToDashboard: () => void
 }
 
+type BackendQuestion = {
+  id: string
+  content: string
+  orderIndex?: number
+  answers?: Array<{
+    id: string
+    content: string
+    isCorrect?: boolean
+  }>
+}
+
+type EditingQuestion = {
+  quizId: string
+  question: BackendQuestion
+  isNew: boolean
+}
+
 function QuizManage({ user, teacherCourseIds, onBackToDashboard }: Props) {
   const teacherCourses = getTeacherCourses(COURSES, user, teacherCourseIds)
   const [selectedCourseId, setSelectedCourseId] = useState(teacherCourses[0]?.id ?? '')
@@ -26,6 +43,7 @@ function QuizManage({ user, teacherCourseIds, onBackToDashboard }: Props) {
   const [quizDetails, setQuizDetails] = useState<Record<string, QuizDetail>>({})
   const [editingQuizId, setEditingQuizId] = useState<string | null>(null)
   const [editTitle, setEditTitle] = useState('')
+  const [editingQuestion, setEditingQuestion] = useState<EditingQuestion | null>(null)
   const [newQuizTitle, setNewQuizTitle] = useState('')
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -164,6 +182,74 @@ function QuizManage({ user, teacherCourseIds, onBackToDashboard }: Props) {
     }
   }
 
+  const handleAddQuestion = (quizId: string) => {
+    const newQuestion: BackendQuestion = {
+      id: `q-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      content: '',
+      answers: [
+        { id: `a-${Date.now()}-0`, content: '', isCorrect: true },
+        { id: `a-${Date.now()}-1`, content: '', isCorrect: false },
+        { id: `a-${Date.now()}-2`, content: '', isCorrect: false },
+        { id: `a-${Date.now()}-3`, content: '', isCorrect: false },
+      ],
+    }
+    setEditingQuestion({ quizId, question: newQuestion, isNew: true })
+  }
+
+  const handleSaveQuestion = () => {
+    if (!editingQuestion) return
+    if (!editingQuestion.question.content.trim()) {
+      setError('Vui lòng nhập nội dung câu hỏi')
+      return
+    }
+    const answers = editingQuestion.question.answers ?? []
+    if (answers.filter((a) => a.content.trim()).length < 2) {
+      setError('Cần ít nhất 2 đáp án')
+      return
+    }
+    if (!answers.some((a) => a.isCorrect)) {
+      setError('Cần chọn một đáp án đúng')
+      return
+    }
+
+    // Update quizDetails with new/updated question
+    const quizId = editingQuestion.quizId
+    const updatedDetail = quizDetails[quizId]
+      ? {
+          ...quizDetails[quizId],
+          questions: editingQuestion.isNew
+            ? [...quizDetails[quizId].questions, editingQuestion.question]
+            : quizDetails[quizId].questions.map((q) =>
+                q.id === editingQuestion.question.id ? editingQuestion.question : q,
+              ),
+        }
+      : null
+
+    if (updatedDetail) {
+      setQuizDetails((prev) => ({
+        ...prev,
+        [quizId]: updatedDetail,
+      }))
+    }
+
+    setEditingQuestion(null)
+    setError('')
+  }
+
+  const handleDeleteQuestion = (quizId: string, questionId: string) => {
+    if (!window.confirm('Bạn chắc chắn muốn xóa câu hỏi này?')) return
+
+    setQuizDetails((prev) => ({
+      ...prev,
+      [quizId]: prev[quizId]
+        ? {
+            ...prev[quizId],
+            questions: prev[quizId].questions.filter((q) => q.id !== questionId),
+          }
+        : prev[quizId],
+    }))
+  }
+
   return (
     <section className="teacher-page">
       <div className="teacher-shell">
@@ -245,7 +331,7 @@ function QuizManage({ user, teacherCourseIds, onBackToDashboard }: Props) {
                         >
                           {expandedQuizId === quiz.id ? 'Đóng' : 'Xem'}
                         </button>
-                        <button className="teacher-action-btn" onClick={() => startEditTitle(quiz)}>Sửa</button>
+                        <button className="teacher-action-btn" onClick={() => startEditTitle(quiz)}>Sửa tiêu đề</button>
                       </div>
                     )}
                   </div>
@@ -254,25 +340,53 @@ function QuizManage({ user, teacherCourseIds, onBackToDashboard }: Props) {
                     <div className="teacher-expand-panel">
                       {!detail && <p className="teacher-empty" style={{ textAlign: 'left' }}>Đang tải chi tiết quiz...</p>}
                       {detail && (
-                        <div className="teacher-question-list">
-                          {detail.questions.map((question, index) => (
-                            <div className="teacher-question-item" key={question.id || `${quiz.id}-${index}`}>
-                              <div className="teacher-question-text">
-                                <strong>{index + 1}.</strong> {question.content || 'Câu hỏi chưa có nội dung'}
-                              </div>
-                              <div className="teacher-options-grid">
-                                {(question.answers ?? []).map((answer, answerIndex) => (
-                                  <div
-                                    key={answer.id || `${question.id}-${answerIndex}`}
-                                    className={`teacher-option ${answer.isCorrect ? 'teacher-option-correct' : ''}`}
-                                  >
-                                    {String.fromCharCode(65 + answerIndex)}. {answer.content}
+                        <>
+                          <div className="teacher-question-list">
+                            {detail.questions.map((question, index) => (
+                              <div key={question.id || `${quiz.id}-${index}`} className="teacher-question-item">
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                                  <div className="teacher-question-text">
+                                    <strong>{index + 1}.</strong> {question.content || 'Câu hỏi chưa có nội dung'}
                                   </div>
-                                ))}
+                                  <div style={{ display: 'flex', gap: 4 }}>
+                                    <button
+                                      className="teacher-action-btn"
+                                      onClick={() => setEditingQuestion({ quizId: quiz.id, question, isNew: false })}
+                                      type="button"
+                                    >
+                                      Sửa
+                                    </button>
+                                    <button
+                                      className="teacher-action-btn teacher-action-btn-danger"
+                                      onClick={() => handleDeleteQuestion(quiz.id, question.id)}
+                                      type="button"
+                                    >
+                                      Xóa
+                                    </button>
+                                  </div>
+                                </div>
+                                <div className="teacher-options-grid">
+                                  {(question.answers ?? []).map((answer, answerIndex) => (
+                                    <div
+                                      key={answer.id || answerIndex}
+                                      className={`teacher-option ${answer.isCorrect ? 'teacher-option-correct' : ''}`}
+                                    >
+                                      {String.fromCharCode(65 + answerIndex)}. {answer.content}
+                                    </div>
+                                  ))}
+                                </div>
                               </div>
-                            </div>
-                          ))}
-                        </div>
+                            ))}
+                          </div>
+                          <button
+                            className="teacher-btn"
+                            onClick={() => handleAddQuestion(quiz.id)}
+                            style={{ marginTop: 12 }}
+                            type="button"
+                          >
+                            + Thêm câu hỏi
+                          </button>
+                        </>
                       )}
                     </div>
                   )}
@@ -280,6 +394,91 @@ function QuizManage({ user, teacherCourseIds, onBackToDashboard }: Props) {
               )
             })}
           </div>
+
+          {editingQuestion && (
+            <div className="teacher-panel" style={{ marginTop: 20 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <h3>{editingQuestion.isNew ? 'Thêm câu hỏi mới' : 'Chỉnh sửa câu hỏi'}</h3>
+                <button
+                  className="teacher-btn ghost"
+                  onClick={() => setEditingQuestion(null)}
+                  type="button"
+                >
+                  Đóng
+                </button>
+              </div>
+
+              <div style={{ marginBottom: 12 }}>
+                <label className="teacher-list-meta">Nội dung câu hỏi</label>
+                <textarea
+                  className="teacher-input"
+                  value={editingQuestion.question.content}
+                  onChange={(e) =>
+                    setEditingQuestion({
+                      ...editingQuestion,
+                      question: { ...editingQuestion.question, content: e.target.value },
+                    })
+                  }
+                  placeholder="Nhập câu hỏi..."
+                  rows={3}
+                  style={{ width: '100%', fontFamily: 'inherit' }}
+                />
+              </div>
+
+              <div style={{ marginBottom: 12 }}>
+                <label className="teacher-list-meta">Các đáp án</label>
+                {(editingQuestion.question.answers ?? []).map((answer, idx) => (
+                  <div key={answer.id || idx} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}>
+                    <input
+                      className="teacher-input"
+                      type="radio"
+                      name="correct-answer"
+                      checked={answer.isCorrect}
+                      onChange={() => {
+                        const newAnswers = (editingQuestion.question.answers ?? []).map((a) => ({
+                          ...a,
+                          isCorrect: a.id === answer.id,
+                        }))
+                        setEditingQuestion({
+                          ...editingQuestion,
+                          question: { ...editingQuestion.question, answers: newAnswers },
+                        })
+                      }}
+                      style={{ width: 20, height: 20, flexShrink: 0 }}
+                    />
+                    <input
+                      className="teacher-input"
+                      value={answer.content}
+                      onChange={(e) => {
+                        const newAnswers = (editingQuestion.question.answers ?? []).map((a) =>
+                          a.id === answer.id ? { ...a, content: e.target.value } : a,
+                        )
+                        setEditingQuestion({
+                          ...editingQuestion,
+                          question: { ...editingQuestion.question, answers: newAnswers },
+                        })
+                      }}
+                      placeholder={`Đáp án ${String.fromCharCode(65 + idx)}`}
+                      style={{ flex: 1 }}
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="teacher-btn" onClick={handleSaveQuestion} type="button">
+                  Lưu câu hỏi
+                </button>
+                <button
+                  className="teacher-btn ghost"
+                  onClick={() => setEditingQuestion(null)}
+                  type="button"
+                >
+                  Hủy
+                </button>
+              </div>
+            </div>
+          )}
         </section>
       </div>
     </section>

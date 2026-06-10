@@ -331,7 +331,14 @@ function LessonManage({ user, teacherCourseIds, onBackToDashboard, onOpenLessonD
 										/>
 										<div style={{ marginTop: 14 }}>
 											{lesson.quiz ? (
-												<QuizPanel quiz={lesson.quiz} />
+<QuizPanel
+                        quiz={lesson.quiz}
+                        courseId={course.id}
+                        courseTitle={course.title}
+                        lessonId={lesson.id}
+                        lessonTitle={lesson.title}
+                        userRole={user.role}
+                      />
 											) : (
 												<p className="teacher-empty" style={{ padding: '8px 0 0', textAlign: 'left' }}>
 													Bài học này chưa có quiz.

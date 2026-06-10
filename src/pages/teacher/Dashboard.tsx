@@ -15,11 +15,12 @@ type Props = {
 	onGoCreateCourse: () => void
 	onGoLessons: () => void
 	onGoQuizzes: () => void
+	onGoMeetings: () => void
 	onGoAssignments: () => void
 	onLogout: () => void
 }
 
-function Dashboard({ user, teacherCourseIds, onOpenProfile, onGoCourses, onGoCreateCourse, onGoLessons, onGoQuizzes, onGoAssignments, onLogout }: Props) {
+function Dashboard({ user, teacherCourseIds, onOpenProfile, onGoCourses, onGoCreateCourse, onGoLessons, onGoQuizzes, onGoMeetings, onGoAssignments, onLogout }: Props) {
 	const teacherCourses = getTeacherCourses(COURSES, user, teacherCourseIds)
 	const totalStudents = teacherCourses.reduce((sum, c) => sum + c.studentCount, 0)
 	const totalLessons = teacherCourses.reduce((sum, c) => sum + (c.lessonCount ?? c.lessons.length), 0)
@@ -177,6 +178,9 @@ function Dashboard({ user, teacherCourseIds, onOpenProfile, onGoCourses, onGoCre
 						</button>
 						<button className="teacher-btn ghost" onClick={onGoQuizzes}>
 							Quiz
+						</button>
+						<button className="teacher-btn ghost" onClick={onGoMeetings}>
+							Lịch họp
 						</button>
 						<button className="teacher-btn ghost" onClick={onGoAssignments}>
 							Bài tập

@@ -1,8 +1,9 @@
 ﻿import { useMemo, useState } from 'react'
 import axios from 'axios'
-import { COURSES, updateCourse } from '../../domain/index.ts'
+import { COURSES, deleteCourse, updateCourse } from '../../domain/index.ts'
 import type { Course, User } from '../../domain/index.ts'
 import { getTeacherCourses } from '../../utils/teacher.ts'
+import { fetchCourseStudents } from '../../services/courseService.ts'
 import './CourseManage.css'
 
 type Props = {
@@ -26,6 +27,11 @@ function CourseManage({ user, teacherCourseIds, onBackToDashboard, onGoCreateCou
 	const [editLevel, setEditLevel] = useState<Course['level']>('Cơ bản')
 	const [isSaving, setIsSaving] = useState(false)
 	const [error, setError] = useState('')
+	const [isDeleting, setIsDeleting] = useState(false)
+	const [studentListCourseId, setStudentListCourseId] = useState<string | null>(null)
+	const [studentListCourseTitle, setStudentListCourseTitle] = useState('')
+	const [studentList, setStudentList] = useState<User[]>([])
+	const [isLoadingStudents, setIsLoadingStudents] = useState(false)
 
 	const courses = getTeacherCourses(COURSES, user, teacherCourseIds)
 
@@ -78,6 +84,61 @@ function CourseManage({ user, teacherCourseIds, onBackToDashboard, onGoCreateCou
 			}
 		} finally {
 			setIsSaving(false)
+		}
+	}
+
+	const handleViewStudents = async (course: Course) => {
+		setStudentListCourseId(course.id)
+		setStudentListCourseTitle(course.title)
+		setStudentList([])
+		setIsLoadingStudents(true)
+		setError('')
+
+		try {
+			const students = await fetchCourseStudents(course.id)
+			setStudentList(students)
+		} catch (viewError) {
+			console.error('load course students failed', viewError)
+			if (axios.isAxiosError(viewError)) {
+				const status = viewError.response?.status
+				const payload = viewError.response?.data as { message?: string; error?: string } | undefined
+				const detail = payload?.message || payload?.error || viewError.message
+				setError(`Không thể tải học viên đăng ký (${status ?? 'network'}). ${detail}`)
+			} else {
+				setError('Không thể tải học viên đăng ký. Vui lòng thử lại.')
+			}
+		} finally {
+			setIsLoadingStudents(false)
+		}
+	}
+
+	const handleDeleteCourse = async (courseId: string) => {
+		if (!window.confirm('Bạn có chắc chắn muốn xóa khóa học này? Hành động không thể hoàn tác.')) {
+			return
+		}
+
+		setIsDeleting(true)
+		setError('')
+
+		try {
+			await deleteCourse(courseId)
+		} catch (deleteError) {
+			console.error('delete course failed', deleteError)
+			if (axios.isAxiosError(deleteError)) {
+				const status = deleteError.response?.status
+				const payload = deleteError.response?.data as { message?: string; error?: string } | undefined
+				const detail = payload?.message || payload?.error || deleteError.message
+
+				if (status === 403) {
+					setError(`Bạn không có quyền xóa khóa học này (${status}). ${detail}`)
+				} else {
+					setError(`Không thể xóa khóa học (${status ?? 'network'}). ${detail}`)
+				}
+			} else {
+				setError('Không thể xóa khóa học. Vui lòng thử lại.')
+			}
+		} finally {
+			setIsDeleting(false)
 		}
 	}
 
@@ -202,6 +263,12 @@ function CourseManage({ user, teacherCourseIds, onBackToDashboard, onGoCreateCou
 										<div className="teacher-actions">
 											<button
 												className="teacher-action-btn"
+												onClick={() => void handleViewStudents(course)}
+											>
+												Học viên
+											</button>
+											<button
+												className="teacher-action-btn"
 												onClick={onGoLessons}
 											>
 												Bài học
@@ -212,6 +279,13 @@ function CourseManage({ user, teacherCourseIds, onBackToDashboard, onGoCreateCou
 											>
 												Sửa nhanh
 											</button>
+											<button
+												className="teacher-action-btn teacher-action-btn-danger"
+												onClick={() => void handleDeleteCourse(course.id)}
+												disabled={isDeleting}
+											>
+												Xóa
+											</button>
 										</div>
 									</td>
 								</tr>
@@ -219,6 +293,32 @@ function CourseManage({ user, teacherCourseIds, onBackToDashboard, onGoCreateCou
 						</tbody>
 					</table>
 				</section>
+				{studentListCourseId && (
+					<section className="teacher-panel" style={{ marginTop: 20 }}>
+						<div className="teacher-panel-head">
+							<h3>Học viên đã đăng ký: {studentListCourseTitle}</h3>
+							<button className="teacher-btn ghost" onClick={() => setStudentListCourseId(null)}>
+								Đóng
+							</button>
+						</div>
+						{isLoadingStudents ? (
+							<p className="teacher-empty">Đang tải học viên đăng ký...</p>
+						) : studentList.length > 0 ? (
+							<div className="teacher-list">
+								{studentList.map((student) => (
+									<div key={student.id || student.email} className="teacher-list-item teacher-list-item-readonly">
+										<div>
+											<div className="teacher-list-title">{student.name}</div>
+											<div className="teacher-list-meta">{student.email}</div>
+										</div>
+									</div>
+								))}
+							</div>
+						) : (
+							<p className="teacher-empty">Chưa có học viên đăng ký cho khóa học này.</p>
+						)}
+					</section>
+				)}
 			</div>
 		</section>
 	)

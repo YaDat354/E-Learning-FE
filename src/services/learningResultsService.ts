@@ -50,10 +50,67 @@ const QUIZ_RESULTS_ENDPOINTS = [
 	'/me/quiz-results',
 ]
 
+const QUIZ_SUBMIT_ENDPOINTS = [
+	'/quiz-results',
+	'/quiz-results/me',
+	'/me/quiz-results',
+]
+
 const ASSIGNMENT_RESULTS_ENDPOINTS = [
 	'/submissions/me',
 	'/me/submissions',
 ]
+
+const LOCAL_QUIZ_RESULTS_KEY = 'learning-quiz-results'
+
+function loadLocalQuizResults(): LearningQuizResult[] {
+	if (typeof window === 'undefined') {
+		return []
+	}
+
+	try {
+		const raw = window.localStorage.getItem(LOCAL_QUIZ_RESULTS_KEY)
+		if (!raw) {
+			return []
+		}
+		const parsed = JSON.parse(raw)
+		if (!Array.isArray(parsed)) {
+			return []
+		}
+		return parsed.map((item) => normalizeQuizResult(item)).filter((item): item is LearningQuizResult => Boolean(item))
+	} catch {
+		return []
+	}
+}
+
+function saveLocalQuizResult(result: LearningQuizResult) {
+	if (typeof window === 'undefined') {
+		return
+	}
+
+	const existing = loadLocalQuizResults()
+	const next = [...existing.filter((item) => item.id !== result.id), result]
+	window.localStorage.setItem(LOCAL_QUIZ_RESULTS_KEY, JSON.stringify(next))
+}
+
+async function submitQuizResultToBackend(payload: unknown) {
+	let lastError: unknown = null
+
+	for (const endpoint of QUIZ_SUBMIT_ENDPOINTS) {
+		try {
+			const response = await api.post(endpoint, payload)
+			return response.data
+		} catch (error) {
+			if (axios.isAxiosError(error) && (error.response?.status === 404 || error.response?.status === 405)) {
+				lastError = error
+				continue
+			}
+			throw error
+		}
+	}
+
+	throw lastError instanceof Error ? lastError : new Error('quiz submit endpoint not found')
+}
 
 function asRecord(value: unknown): RawRecord {
 	return value && typeof value === 'object' ? (value as RawRecord) : {}
@@ -227,21 +284,52 @@ async function getWithFallback(endpoints: string[]) {
 	throw lastError instanceof Error ? lastError : new Error('learning results endpoint not found')
 }
 
+export async function submitQuizResult(payload: {
+	quizId: string
+	quizTitle: string
+	score: number
+	submittedAt: string
+	courseId?: string
+	courseTitle?: string
+	lessonId?: string
+	lessonTitle?: string
+}): Promise<LearningQuizResult> {
+	const normalizedQuizResult: LearningQuizResult = {
+		id: payload.quizId,
+		quizId: payload.quizId,
+		quizTitle: payload.quizTitle,
+		score: payload.score,
+		submittedAt: payload.submittedAt,
+		courseId: payload.courseId,
+		courseTitle: payload.courseTitle,
+		lessonId: payload.lessonId,
+		lessonTitle: payload.lessonTitle,
+	}
+
+	try {
+		const data = await submitQuizResultToBackend(normalizedQuizResult)
+		const saved = normalizeQuizResult(data)
+		if (saved) {
+			saveLocalQuizResult(saved)
+			return saved
+		}
+	} catch (error) {
+		console.warn('quiz submit backend failed, persisting locally', error)
+		saveLocalQuizResult(normalizedQuizResult)
+		return normalizedQuizResult
+	}
+
+	saveLocalQuizResult(normalizedQuizResult)
+	return normalizedQuizResult
+}
+
 export async function fetchMyLearningResults(): Promise<LearningResultsPayload> {
 	const [quizResponse, assignmentResponse] = await Promise.allSettled([
 		getWithFallback(QUIZ_RESULTS_ENDPOINTS),
 		getWithFallback(ASSIGNMENT_RESULTS_ENDPOINTS),
 	])
 
-	if (quizResponse.status === 'rejected' && assignmentResponse.status === 'rejected') {
-		throw quizResponse.reason instanceof Error
-			? quizResponse.reason
-			: assignmentResponse.reason instanceof Error
-				? assignmentResponse.reason
-				: new Error('failed to fetch learning results')
-	}
-
-	const quizResults = quizResponse.status === 'fulfilled'
+	const backendQuizResults = quizResponse.status === 'fulfilled'
 		? extractArrayPayload<unknown>(quizResponse.value).map((row) => normalizeQuizResult(row)).filter((item): item is LearningQuizResult => Boolean(item))
 		: []
 
@@ -249,9 +337,19 @@ export async function fetchMyLearningResults(): Promise<LearningResultsPayload> 
 		? extractArrayPayload<unknown>(assignmentResponse.value).map((row) => normalizeAssignmentSubmission(row)).filter((item): item is LearningAssignmentSubmission => Boolean(item))
 		: []
 
+	const localQuizResults = loadLocalQuizResults()
+	const quizResults = [...backendQuizResults]
+
+	for (const local of localQuizResults) {
+		if (!quizResults.some((backend) => backend.id === local.id)) {
+			quizResults.push(local)
+		}
+	}
+
 	return {
 		quizResults,
 		assignmentSubmissions,
 		summary: summarizeLearning(quizResults, assignmentSubmissions),
 	}
 }
+

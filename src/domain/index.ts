@@ -4,6 +4,7 @@ export {
 	USERS,
 	createCourse,
 	createUser,
+	deleteCourse,
 	deleteLesson,
 	deleteUser,
 	fetchCourses,
