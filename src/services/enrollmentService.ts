@@ -168,4 +168,16 @@ export async function updateLessonProgress(lessonId: string, payload: LessonProg
   })
 }
 
+export async function submitAssignment(lessonId: string, content: string, fileUrl?: string): Promise<void> {
+  const payload: Record<string, unknown> = {
+    content,
+  }
+  
+  if (fileUrl) {
+    payload.fileUrl = fileUrl
+  }
+
+  await api.post(`/me/lessons/${encodeURIComponent(lessonId)}/assignments/submit`, payload)
+}
+
 export type { ContinueLearningItem, LessonProgressPayload }

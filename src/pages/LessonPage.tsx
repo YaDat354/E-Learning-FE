@@ -384,7 +384,7 @@ function LessonPage({ courseId, lessonId, user, onBack, onGoToLesson, onGoAuth }
                   )}
                 </div>
               )}
-              {activeTab === 'submission' && <AssignmentPanel lessonTitle={lesson.title} userRole={user?.role ?? null} />}
+              {activeTab === 'submission' && <AssignmentPanel lessonTitle={lesson.title} lessonId={lesson.id} userRole={user?.role ?? null} />}
               {activeTab === 'discussion' && (
                 <DiscussionPanel
                   lessonId={lessonId}

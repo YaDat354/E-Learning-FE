@@ -1,14 +1,18 @@
 import { useState } from 'react'
 import type { UserRole } from '../../domain/index.ts'
+import { submitAssignment } from '../../services/enrollmentService.ts'
 
 type AssignmentPanelProps = {
   lessonTitle: string
+  lessonId: string
   userRole: UserRole | null
 }
 
-function AssignmentPanel({ lessonTitle, userRole }: AssignmentPanelProps) {
+function AssignmentPanel({ lessonTitle, lessonId, userRole }: AssignmentPanelProps) {
   const [text, setText] = useState('')
   const [submitted, setSubmitted] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState('')
 
   if (userRole === 'teacher' || userRole === 'admin') {
     return (
@@ -29,6 +33,25 @@ function AssignmentPanel({ lessonTitle, userRole }: AssignmentPanelProps) {
         </div>
       </div>
     )
+  }
+
+  const handleSubmit = async () => {
+    if (text.trim().length < 10 || isLoading) return
+
+    setIsLoading(true)
+    setError('')
+
+    try {
+      await submitAssignment(lessonId, text)
+      setSubmitted(true)
+      setText('')
+    } catch (err) {
+      console.error('Assignment submission failed:', err)
+      setError(err instanceof Error ? err.message : 'Gửi bài tập thất bại. Vui lòng thử lại.')
+      setSubmitted(false)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   if (submitted) {
@@ -55,14 +78,20 @@ function AssignmentPanel({ lessonTitle, userRole }: AssignmentPanelProps) {
         placeholder="Nhập bài làm, đoạn hội thoại hoặc ghi chú luyện tập của bạn tại đây..."
         value={text}
         onChange={(e) => setText(e.target.value)}
+        disabled={isLoading}
       />
+      {error && (
+        <div style={{ color: '#dc2626', fontSize: 14, marginTop: 8, marginBottom: 8 }}>
+          {error}
+        </div>
+      )}
       <button
         className="btn-submit-assignment"
-        disabled={text.trim().length < 10}
-        onClick={() => setSubmitted(true)}
+        disabled={text.trim().length < 10 || isLoading}
+        onClick={handleSubmit}
         type="button"
       >
-        Nộp bài tập
+        {isLoading ? 'Đang gửi...' : 'Nộp bài tập'}
       </button>
     </div>
   )

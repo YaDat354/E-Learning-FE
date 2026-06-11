@@ -283,4 +283,45 @@ export async function fetchTeachingAssignmentsOverview(): Promise<TeachingAssign
   })
 }
 
-export type { TeachingAssignmentOverviewItem }
+type AssignmentSubmission = {
+  submissionId: string
+  studentId: string
+  studentName: string
+  submittedAt: string
+  content: string
+  score?: number | null
+  feedback?: string
+}
+
+export async function fetchAssignmentSubmissions(assignmentId: string): Promise<AssignmentSubmission[]> {
+  const { data } = await api.get(`/me/assignments/${encodeURIComponent(assignmentId)}/submissions`)
+  const rows = extractArrayPayload<unknown>(data)
+
+  return rows.map((row) => {
+    const item = asRecord(row)
+
+    return {
+      submissionId: typeof item.submissionId === 'string' ? item.submissionId : '',
+      studentId: typeof item.studentId === 'string' ? item.studentId : '',
+      studentName: typeof item.studentName === 'string' ? item.studentName : 'Học viên',
+      submittedAt: typeof item.submittedAt === 'string' ? item.submittedAt : new Date().toISOString(),
+      content: typeof item.content === 'string' ? item.content : '',
+      score: item.score === null || item.score === undefined ? null : toNumber(item.score),
+      feedback: typeof item.feedback === 'string' ? item.feedback : undefined,
+    }
+  })
+}
+
+type GradeSubmissionPayload = {
+  score?: number
+  feedback?: string
+}
+
+export async function gradeAssignmentSubmission(assignmentId: string, submissionId: string, payload: GradeSubmissionPayload): Promise<void> {
+  await api.patch(`/me/assignments/${encodeURIComponent(assignmentId)}/submissions/${encodeURIComponent(submissionId)}/grade`, {
+    score: payload.score,
+    feedback: payload.feedback,
+  })
+}
+
+export type { TeachingAssignmentOverviewItem, AssignmentSubmission }

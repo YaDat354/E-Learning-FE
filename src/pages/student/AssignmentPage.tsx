@@ -1,27 +1,47 @@
 import { useState, type ChangeEvent } from 'react'
+import { submitAssignment } from '../../services/enrollmentService.ts'
 import './AssignmentPage.css'
 
 type AssignmentPageProps = {
 	lessonTitle: string
+	lessonId: string
 	onBack: () => void
 }
 
-function AssignmentPage({ lessonTitle, onBack }: AssignmentPageProps) {
+function AssignmentPage({ lessonTitle, lessonId, onBack }: AssignmentPageProps) {
 	const [text, setText] = useState('')
 	const [files, setFiles] = useState<File[]>([])
 	const [submitted, setSubmitted] = useState(false)
+	const [isLoading, setIsLoading] = useState(false)
+	const [error, setError] = useState('')
 
-	const canSubmit = text.trim().length > 0 || files.length > 0
+	const canSubmit = text.trim().length > 0 && !isLoading
 
 	const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
 		const selectedFiles = Array.from(event.target.files ?? [])
 		setFiles(selectedFiles)
 		setSubmitted(false)
+		setError('')
 	}
 
-	const handleSubmit = () => {
+	const handleSubmit = async () => {
 		if (!canSubmit) return
-		setSubmitted(true)
+		
+		setIsLoading(true)
+		setError('')
+		
+		try {
+			await submitAssignment(lessonId, text)
+			setSubmitted(true)
+			setText('')
+			setFiles([])
+		} catch (err) {
+			console.error('Assignment submission failed:', err)
+			setError(err instanceof Error ? err.message : 'Gửi bài tập thất bại. Vui lòng thử lại.')
+			setSubmitted(false)
+		} finally {
+			setIsLoading(false)
+		}
 	}
 
 	return (
@@ -32,7 +52,7 @@ function AssignmentPage({ lessonTitle, onBack }: AssignmentPageProps) {
 						<h1 className="student-title">Nộp bài thực hành</h1>
 						<p className="student-subtitle">Bài: {lessonTitle}</p>
 					</div>
-					<button className="student-btn ghost" onClick={onBack}>Quay lại</button>
+					<button className="student-btn ghost" onClick={onBack} disabled={isLoading}>Quay lại</button>
 				</header>
 
 				<article className="student-panel">
@@ -44,7 +64,9 @@ function AssignmentPage({ lessonTitle, onBack }: AssignmentPageProps) {
 						onChange={(event) => {
 							setText(event.target.value)
 							setSubmitted(false)
+							setError('')
 						}}
+						disabled={isLoading}
 					/>
 
 					<div className="student-file-upload">
@@ -57,6 +79,7 @@ function AssignmentPage({ lessonTitle, onBack }: AssignmentPageProps) {
 							className="student-file-input"
 							multiple
 							onChange={handleFileChange}
+							disabled={isLoading}
 						/>
 						{files.length > 0 && (
 							<ul className="student-file-list">
@@ -76,9 +99,14 @@ function AssignmentPage({ lessonTitle, onBack }: AssignmentPageProps) {
 							onClick={handleSubmit}
 							disabled={!canSubmit}
 						>
-							Gửi bài cho giảng viên
+							{isLoading ? 'Đang gửi...' : 'Gửi bài cho giảng viên'}
 						</button>
 					</div>
+					{error && (
+						<p className="student-note" style={{ marginTop: 10, color: '#dc2626' }}>
+							{error}
+						</p>
+					)}
 					{submitted && (
 						<p className="student-note" style={{ marginTop: 10 }}>
 							Đã gửi bài thành công
