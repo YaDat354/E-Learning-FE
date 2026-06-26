@@ -1,8 +1,8 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { COURSES } from '../../domain/index.ts'
 import type { User } from '../../domain/index.ts'
 import { getTeacherCourses } from '../../utils/teacher.ts'
-import { createMeetingNotification, type MeetingNotification } from '../../services/meetingService.ts'
+import { createMeetingNotification, fetchMeetingsForCourses, type MeetingNotification } from '../../services/meetingService.ts'
 import './MeetingManage.css'
 
 function ensureAbsoluteUrl(url?: string) {
@@ -20,7 +20,10 @@ type Props = {
 }
 
 function MeetingManage({ user, teacherCourseIds, onBackToDashboard }: Props) {
-  const teacherCourses = getTeacherCourses(COURSES, user, teacherCourseIds)
+  const teacherCourses = useMemo(
+    () => getTeacherCourses(COURSES, user, teacherCourseIds),
+    [teacherCourseIds, user],
+  )
   const [selectedCourseId, setSelectedCourseId] = useState(teacherCourses[0]?.id ?? '')
   const [meetings, setMeetings] = useState<MeetingNotification[]>([])
   const [title, setTitle] = useState('')
@@ -31,9 +34,39 @@ function MeetingManage({ user, teacherCourseIds, onBackToDashboard }: Props) {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
-  const selectedCourseTitle = useMemo(() => {
-    return teacherCourses.find((course) => course.id === selectedCourseId)?.title ?? 'Khóa học'
-  }, [selectedCourseId, teacherCourses])
+  const teacherCourseIdsForHistory = useMemo(
+    () => teacherCourses.map((course) => course.id),
+    [teacherCourses],
+  )
+
+  useEffect(() => {
+    let mounted = true
+
+    const loadHistory = async () => {
+      try {
+        const courseIds = teacherCourseIdsForHistory
+        if (courseIds.length === 0) {
+          if (mounted) {
+            setMeetings([])
+          }
+          return
+        }
+
+        const rows = await fetchMeetingsForCourses(courseIds)
+        if (mounted) {
+          setMeetings(rows)
+        }
+      } catch (loadError) {
+        console.error('Failed to load teacher meeting history', loadError)
+      }
+    }
+
+    void loadHistory()
+
+    return () => {
+      mounted = false
+    }
+  }, [teacherCourseIdsForHistory])
 
   const selectedCourseStudentCount = useMemo(() => {
     return teacherCourses.find((course) => course.id === selectedCourseId)?.studentCount ?? 0
@@ -75,7 +108,7 @@ function MeetingManage({ user, teacherCourseIds, onBackToDashboard }: Props) {
         meetingUrl: normalizedMeetingUrl,
       })
 
-      await createMeetingNotification({
+      const created = await createMeetingNotification({
         courseId: selectedCourseId,
         title: title.trim(),
         description: description.trim(),
@@ -89,20 +122,10 @@ function MeetingManage({ user, teacherCourseIds, onBackToDashboard }: Props) {
       setScheduledAt('')
       setMeetingUrl('')
 
-      // Add to local list for display
+      // Keep a local optimistic row and preserve history from backend.
       setMeetings((prev) => [
-        {
-          id: `m-${Date.now()}`,
-          courseId: selectedCourseId,
-          courseName: selectedCourseTitle,
-          title: title.trim(),
-          description: description.trim(),
-          scheduledAt,
-          meetingUrl: normalizedMeetingUrl ?? '',
-          status: 'pending',
-          teacherName: user.name,
-        },
-        ...prev,
+        created,
+        ...prev.filter((item) => item.id !== created.id),
       ])
 
       // Clear success message after 5 seconds

@@ -33,6 +33,8 @@ export type Course = {
 export type Lesson = {
   id: string
   title: string
+  assignmentId?: string
+  assignmentTitle?: string
   duration: string
   videoId: string
   description: string

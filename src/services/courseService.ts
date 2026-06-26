@@ -554,6 +554,29 @@ function normalizeLesson(lesson: Partial<Lesson>): Lesson {
 				.map((candidate) => normalizeQuiz(candidate, lesson.title || 'Bài học'))
 				.find((candidate): candidate is Quiz => Boolean(candidate))
 			?? normalizeQuiz(lesson.quiz, lesson.title || 'Bài học')
+		const assignmentRows = readArrayFromSources([rawLesson, nestedContent, lessonContent, detailContent, practiceContent], [
+			'assignments',
+			'assignmentList',
+			'assignmentItems',
+		])
+		const firstAssignment = asRecord(assignmentRows[0])
+		const directAssignmentId = readIdentifierFromSources([
+			rawLesson,
+			nestedContent,
+			lessonContent,
+			detailContent,
+			practiceContent,
+		], ['assignmentId', 'assignment_id'])
+		const listAssignmentId = readIdentifierFromSources([firstAssignment], ['assignmentId', 'assignment_id', 'id', '_id'])
+		const resolvedAssignmentId = directAssignmentId || listAssignmentId
+		const resolvedAssignmentTitle = readStringFromSources([
+			rawLesson,
+			nestedContent,
+			lessonContent,
+			detailContent,
+			practiceContent,
+			firstAssignment,
+		], ['assignmentTitle', 'assignment_title', 'title', 'name'])
 
 	const finalLesson = {
 		id:
@@ -563,6 +586,8 @@ function normalizeLesson(lesson: Partial<Lesson>): Lesson {
 					? String(lesson.id)
 					: `lesson-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
 		title: lesson.title || 'Bài học chưa có tiêu đề',
+		assignmentId: resolvedAssignmentId || undefined,
+		assignmentTitle: resolvedAssignmentTitle || undefined,
 		duration: lesson.duration || '00:00',
 		videoId: resolvedVideoId,
 		description: lesson.description || '',
@@ -728,7 +753,7 @@ function normalizeCourseDetail(payload: unknown): Course {
 export async function fetchCourses() {
 	let data: unknown
 	try {
-		const resp = await api.get('/api/v1/courses')
+		const resp = await api.get('/courses')
 		data = resp.data
 	} catch {
 		const resp = await api.get('/courses')
@@ -741,7 +766,7 @@ export async function fetchCourses() {
 
 export async function fetchCourseDetail(courseId: string) {
 	try {
-		const resp = await api.get(`/api/v1/courses/${encodeURIComponent(courseId)}`)
+		const resp = await api.get(`/courses/${encodeURIComponent(courseId)}`)
 		return normalizeCourseDetail(resp.data)
 	} catch {
 		const resp = await api.get(`/courses/${encodeURIComponent(courseId)}`)
@@ -950,7 +975,7 @@ export async function createCourse(payload: Omit<Course, 'id'> & { id?: string }
 	}
 	let data: unknown
 	try {
-		const resp = await api.post('/api/v1/courses', requestPayload)
+		const resp = await api.post('/courses', requestPayload)
 		data = resp.data
 	} catch {
 		const resp = await api.post('/courses', requestPayload)
@@ -997,9 +1022,9 @@ export async function updateCourse(courseId: string, payload: Partial<Course>) {
 export async function fetchCourseStudents(courseId: string) {
 	const encodedCourseId = encodeURIComponent(courseId)
 	const endpoints = [
-		`/api/v1/courses/${encodedCourseId}/students`,
-		`/api/v1/courses/${encodedCourseId}/enrollments`,
-		`/api/v1/courses/${encodedCourseId}/enrolled-students`,
+		`/courses/${encodedCourseId}/students`,
+		`/courses/${encodedCourseId}/enrollments`,
+		`/courses/${encodedCourseId}/enrolled-students`,
 		`/courses/${encodedCourseId}/students`,
 		`/courses/${encodedCourseId}/enrollments`,
 		`/courses/${encodedCourseId}/enrolled-students`,
@@ -1030,7 +1055,7 @@ export async function fetchCourseStudents(courseId: string) {
 export async function deleteCourse(courseId: string) {
 	const encodedCourseId = encodeURIComponent(courseId)
 	const deleteTargets = [
-		`/api/v1/courses/${encodedCourseId}`,
+		`/courses/${encodedCourseId}`,
 		`/courses/${encodedCourseId}`,
 		`/course/${encodedCourseId}`,
 	]
@@ -1072,8 +1097,8 @@ export async function updateLesson(lessonId: string, payload: Partial<Lesson>) {
 	const encodedCourseId = encodeURIComponent(course.id)
 	const encodedLessonId = encodeURIComponent(lessonId)
 	const updateTargets: Array<{ method: 'patch' | 'put'; endpoint: string }> = [
-		{ method: 'patch', endpoint: `/api/v1/lessons/${encodedLessonId}` },
-		{ method: 'patch', endpoint: `/api/v1/courses/${encodedCourseId}/lessons/${encodedLessonId}` },
+		{ method: 'patch', endpoint: `/lessons/${encodedLessonId}` },
+		{ method: 'patch', endpoint: `/courses/${encodedCourseId}/lessons/${encodedLessonId}` },
 		{ method: 'patch', endpoint: `/lessons/${encodedLessonId}` },
 		{ method: 'patch', endpoint: `/courses/${encodedCourseId}/lessons/${encodedLessonId}` },
 		{ method: 'patch', endpoint: `/courses/${encodedCourseId}/lesson/${encodedLessonId}` },
@@ -1139,8 +1164,8 @@ export async function deleteLesson(lessonId: string) {
 	const encodedCourseId = encodeURIComponent(course.id)
 	const encodedLessonId = encodeURIComponent(lessonId)
 	const deleteTargets = [
-		`/api/v1/lessons/${encodedLessonId}`,
-		`/api/v1/courses/${encodedCourseId}/lessons/${encodedLessonId}`,
+		`/lessons/${encodedLessonId}`,
+		`/courses/${encodedCourseId}/lessons/${encodedLessonId}`,
 		`/lessons/${encodedLessonId}`,
 		`/courses/${encodedCourseId}/lessons/${encodedLessonId}`,
 		`/courses/${encodedCourseId}/lesson/${encodedLessonId}`,

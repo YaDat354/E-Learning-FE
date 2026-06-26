@@ -119,8 +119,8 @@ async function requestWithFallback<T>(method: 'get' | 'post' | 'patch' | 'put', 
 
 export async function fetchCourseQuizzes(courseId: string): Promise<QuizSummary[]> {
   const endpoints = [
-    `/api/v1/courses/${encodeURIComponent(courseId)}/quizzes`,
-    `/api/v1/courses/${encodeURIComponent(courseId)}/quiz`,
+    `/courses/${encodeURIComponent(courseId)}/quizzes`,
+    `/courses/${encodeURIComponent(courseId)}/quiz`,
     `/courses/${encodeURIComponent(courseId)}/quizzes`,
     `/courses/${encodeURIComponent(courseId)}/quiz`,
     `/course/${encodeURIComponent(courseId)}/quizzes`,
@@ -133,8 +133,8 @@ export async function fetchCourseQuizzes(courseId: string): Promise<QuizSummary[
 
 export async function fetchQuizDetail(courseId: string, quizId: string): Promise<QuizDetail> {
   const endpoints = [
-    `/api/v1/courses/${encodeURIComponent(courseId)}/quizzes/${encodeURIComponent(quizId)}`,
-    `/api/v1/courses/${encodeURIComponent(courseId)}/quiz/${encodeURIComponent(quizId)}`,
+    `/courses/${encodeURIComponent(courseId)}/quizzes/${encodeURIComponent(quizId)}`,
+    `/courses/${encodeURIComponent(courseId)}/quiz/${encodeURIComponent(quizId)}`,
     `/courses/${encodeURIComponent(courseId)}/quizzes/${encodeURIComponent(quizId)}`,
     `/courses/${encodeURIComponent(courseId)}/quiz/${encodeURIComponent(quizId)}`,
     `/course/${encodeURIComponent(courseId)}/quizzes/${encodeURIComponent(quizId)}`,
@@ -146,8 +146,8 @@ export async function fetchQuizDetail(courseId: string, quizId: string): Promise
 
 export async function createCourseQuiz(courseId: string, payload: { title: string; description?: string; timeLimit?: number }): Promise<QuizSummary> {
   const endpoints = [
-    `/api/v1/courses/${encodeURIComponent(courseId)}/quizzes`,
-    `/api/v1/courses/${encodeURIComponent(courseId)}/quiz`,
+    `/courses/${encodeURIComponent(courseId)}/quizzes`,
+    `/courses/${encodeURIComponent(courseId)}/quiz`,
     `/courses/${encodeURIComponent(courseId)}/quizzes`,
     `/courses/${encodeURIComponent(courseId)}/quiz`,
     `/course/${encodeURIComponent(courseId)}/quizzes`,
@@ -159,8 +159,8 @@ export async function createCourseQuiz(courseId: string, payload: { title: strin
 
 export async function updateCourseQuiz(courseId: string, quizId: string, payload: { title?: string; description?: string; timeLimit?: number }): Promise<QuizSummary> {
   const endpoints = [
-    `/api/v1/courses/${encodeURIComponent(courseId)}/quizzes/${encodeURIComponent(quizId)}`,
-    `/api/v1/courses/${encodeURIComponent(courseId)}/quiz/${encodeURIComponent(quizId)}`,
+    `/courses/${encodeURIComponent(courseId)}/quizzes/${encodeURIComponent(quizId)}`,
+    `/courses/${encodeURIComponent(courseId)}/quiz/${encodeURIComponent(quizId)}`,
     `/courses/${encodeURIComponent(courseId)}/quizzes/${encodeURIComponent(quizId)}`,
     `/courses/${encodeURIComponent(courseId)}/quiz/${encodeURIComponent(quizId)}`,
     `/course/${encodeURIComponent(courseId)}/quizzes/${encodeURIComponent(quizId)}`,

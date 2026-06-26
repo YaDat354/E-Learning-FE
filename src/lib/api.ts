@@ -1,7 +1,19 @@
 import axios from 'axios'
 
+let baseURL = import.meta.env.VITE_API_URL ?? ''
+
+// Normalize configured URL: remove trailing slash only
+if (typeof baseURL === 'string' && baseURL.length > 0) {
+  baseURL = baseURL.replace(/\/+$/, '')
+}
+
+if (!baseURL) {
+  // eslint-disable-next-line no-console
+  console.warn('VITE_API_URL is not set. API requests will be sent as relative URLs.')
+}
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
+  baseURL,
   headers: {
     'Content-Type': 'application/json',
   },

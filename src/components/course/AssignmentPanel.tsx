@@ -5,12 +5,15 @@ import { submitAssignment } from '../../services/enrollmentService.ts'
 type AssignmentPanelProps = {
   lessonTitle: string
   lessonId: string
+  courseId?: string
+  assignmentId?: string
   userRole: UserRole | null
 }
 
-function AssignmentPanel({ lessonTitle, lessonId, userRole }: AssignmentPanelProps) {
+function AssignmentPanel({ lessonTitle, lessonId, courseId, assignmentId, userRole }: AssignmentPanelProps) {
   const [text, setText] = useState('')
   const [submitted, setSubmitted] = useState(false)
+  const [savedMode, setSavedMode] = useState<'server' | 'local'>('server')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -40,14 +43,29 @@ function AssignmentPanel({ lessonTitle, lessonId, userRole }: AssignmentPanelPro
 
     setIsLoading(true)
     setError('')
+    setSavedMode('server')
 
     try {
-      await submitAssignment(lessonId, text)
+      const result = await submitAssignment(lessonId, { content: text, assignmentId, courseId })
+      setSavedMode(result.saved)
       setSubmitted(true)
       setText('')
     } catch (err) {
       console.error('Assignment submission failed:', err)
-      setError(err instanceof Error ? err.message : 'Gửi bài tập thất bại. Vui lòng thử lại.')
+      const anyErr = err as any
+      const statusCode = anyErr?.response?.status
+      const serverMessage = anyErr?.response?.data?.message || anyErr?.response?.data || anyErr?.response?.statusText
+      setError(
+        statusCode === 401
+          ? 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại rồi nộp bài.'
+          : statusCode === 403
+          ? 'Bạn chưa có quyền nộp bài ở bài học này. Vui lòng kiểm tra quyền ghi danh khóa học.'
+          : typeof serverMessage === 'string' && serverMessage.length > 0
+          ? `Lỗi server: ${serverMessage}`
+          : anyErr instanceof Error
+          ? anyErr.message
+          : 'Gửi bài tập thất bại. Vui lòng thử lại.'
+      )
       setSubmitted(false)
     } finally {
       setIsLoading(false)
@@ -57,11 +75,17 @@ function AssignmentPanel({ lessonTitle, lessonId, userRole }: AssignmentPanelPro
   if (submitted) {
     return (
       <div className="assignment-submitted">
-        <div style={{ fontSize: 40, marginBottom: 10 }}>Đã nộp</div>
-        <h4>Bài tập đã được gửi</h4>
-        <p style={{ fontSize: 14, marginTop: 6 }}>
-          Giảng viên sẽ xem bài và phản hồi trong vòng 24 đến 48 giờ.
-        </p>
+        <div style={{ fontSize: 40, marginBottom: 10 }}>{savedMode === 'server' ? 'Đã nộp' : 'Tạm lưu'}</div>
+        <h4>{savedMode === 'server' ? 'Bài tập đã được gửi' : 'Bài nộp chưa gửi lên server'}</h4>
+        {savedMode === 'server' ? (
+          <p style={{ fontSize: 14, marginTop: 6 }}>
+            Giảng viên sẽ xem bài và phản hồi trong vòng 24 đến 48 giờ.
+          </p>
+        ) : (
+          <p style={{ fontSize: 14, marginTop: 6, color: '#b45309' }}>
+            Bài nộp mới được lưu tạm trên thiết bị. Giảng viên chưa thể nhìn thấy hoặc chấm điểm cho đến khi gửi thành công lên server.
+          </p>
+        )}
       </div>
     )
   }

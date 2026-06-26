@@ -12,15 +12,18 @@ function AssignmentPage({ lessonTitle, lessonId, onBack }: AssignmentPageProps) 
 	const [text, setText] = useState('')
 	const [files, setFiles] = useState<File[]>([])
 	const [submitted, setSubmitted] = useState(false)
+	const [savedMode, setSavedMode] = useState<'server' | 'local'>('server')
+	const [submittedFileCount, setSubmittedFileCount] = useState(0)
 	const [isLoading, setIsLoading] = useState(false)
 	const [error, setError] = useState('')
 
-	const canSubmit = text.trim().length > 0 && !isLoading
+	const canSubmit = (text.trim().length > 0 || files.length > 0) && !isLoading
 
 	const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
 		const selectedFiles = Array.from(event.target.files ?? [])
 		setFiles(selectedFiles)
 		setSubmitted(false)
+		setSubmittedFileCount(0)
 		setError('')
 	}
 
@@ -29,16 +32,34 @@ function AssignmentPage({ lessonTitle, lessonId, onBack }: AssignmentPageProps) 
 		
 		setIsLoading(true)
 		setError('')
+		setSavedMode('server')
 		
 		try {
-			await submitAssignment(lessonId, text)
+			const uploadedFiles = [...files]
+			const result = await submitAssignment(lessonId, { content: text, files: uploadedFiles })
+			setSavedMode(result.saved)
 			setSubmitted(true)
+			setSubmittedFileCount(uploadedFiles.length)
 			setText('')
 			setFiles([])
 		} catch (err) {
 			console.error('Assignment submission failed:', err)
-			setError(err instanceof Error ? err.message : 'Gửi bài tập thất bại. Vui lòng thử lại.')
+			const anyErr = err as any
+			const statusCode = anyErr?.response?.status
+			const serverMessage = anyErr?.response?.data?.message || anyErr?.response?.data || anyErr?.response?.statusText
+			setError(
+				statusCode === 401
+					? 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại rồi nộp bài.'
+					: statusCode === 403
+					? 'Bạn chưa có quyền nộp bài ở bài học này. Vui lòng kiểm tra quyền ghi danh khóa học.'
+					: typeof serverMessage === 'string' && serverMessage.length > 0
+					? `Lỗi server: ${serverMessage}`
+					: err instanceof Error
+					? err.message
+					: 'Gửi bài tập thất bại. Vui lòng thử lại.'
+			)
 			setSubmitted(false)
+			setSubmittedFileCount(0)
 		} finally {
 			setIsLoading(false)
 		}
@@ -64,6 +85,7 @@ function AssignmentPage({ lessonTitle, lessonId, onBack }: AssignmentPageProps) 
 						onChange={(event) => {
 							setText(event.target.value)
 							setSubmitted(false)
+							setSubmittedFileCount(0)
 							setError('')
 						}}
 						disabled={isLoading}
@@ -109,8 +131,9 @@ function AssignmentPage({ lessonTitle, lessonId, onBack }: AssignmentPageProps) 
 					)}
 					{submitted && (
 						<p className="student-note" style={{ marginTop: 10 }}>
-							Đã gửi bài thành công
-							{files.length > 0 ? ` với ${files.length} file đính kèm` : ''}. Giảng viên sẽ phản hồi trong phần thảo luận.
+							{savedMode === 'server'
+								? `Đã gửi bài thành công${submittedFileCount > 0 ? ` với ${submittedFileCount} file đính kèm` : ''}. Giảng viên sẽ phản hồi trong phần thảo luận.`
+								: `Bài nộp mới lưu tạm trên thiết bị${submittedFileCount > 0 ? ` với ${submittedFileCount} file đính kèm` : ''}. Chưa gửi lên server nên giảng viên chưa thể nhìn thấy hoặc chấm điểm.`}
 						</p>
 					)}
 				</article>
